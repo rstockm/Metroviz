@@ -15,7 +15,7 @@ class App {
     initAlpine() {
         document.addEventListener('alpine:init', () => {
             Alpine.data('metrovizApp', () => ({
-                editorVisible: true,
+                editorVisible: false,
                 globalView: 'map',
                 activeTab: 'visual',
                 rawJson: '',
@@ -32,12 +32,24 @@ class App {
 
                 init() {
                     this.loadIndex();
-                    if (this.savedFiles.length > 0) {
+                    this.parseUrlParams();
+
+                    if (this.currentFileName && this.savedFiles.includes(this.currentFileName)) {
+                        this.loadFile(this.currentFileName);
+                    } else if (this.savedFiles.length > 0) {
                         this.currentFileName = this.savedFiles[0];
                         this.loadFile(this.currentFileName);
                     } else {
                         this.loadInitialData();
                     }
+                    
+                    // Set initial URL state correctly if it was defaulted
+                    this.updateUrlParams();
+
+                    // Watch states to update URL dynamically
+                    this.$watch('editorVisible', () => this.updateUrlParams());
+                    this.$watch('globalView', () => this.updateUrlParams());
+                    this.$watch('currentFileName', () => this.updateUrlParams());
                     
                     // Watch for any changes in the parsed data object (from visual editor)
                     this.$watch('data', (value) => {
@@ -62,6 +74,42 @@ class App {
                             this.savedFiles = JSON.parse(index);
                         }
                     } catch(e) {}
+                },
+
+                parseUrlParams() {
+                    const params = new URLSearchParams(window.location.search);
+                    
+                    if (params.has('editor')) {
+                        this.editorVisible = params.get('editor') === '1' || params.get('editor') === 'true';
+                    }
+
+                    if (params.has('view')) {
+                        const v = params.get('view');
+                        if (v === 'map' || v === 'markdown') {
+                            this.globalView = v;
+                        }
+                    }
+
+                    if (params.has('file')) {
+                        const f = params.get('file');
+                        if (this.savedFiles.includes(f)) {
+                            this.currentFileName = f;
+                        }
+                    }
+                },
+
+                updateUrlParams() {
+                    const url = new URL(window.location);
+                    url.searchParams.set('editor', this.editorVisible ? '1' : '0');
+                    url.searchParams.set('view', this.globalView);
+                    
+                    if (this.currentFileName) {
+                        url.searchParams.set('file', this.currentFileName);
+                    } else {
+                        url.searchParams.delete('file');
+                    }
+                    
+                    window.history.replaceState({}, '', url);
                 },
 
                 saveIndex() {
@@ -106,6 +154,7 @@ class App {
 
                 createNew() {
                     this.currentFileName = '';
+                    this.editorVisible = true;
                     this.data = {
                         meta: { title: 'Neue Roadmap', organization: '' },
                         timeline: { start: '2020-Q1', end: '2025-Q4' },
@@ -283,6 +332,54 @@ class App {
                     this.data.lines.splice(index, 1);
                 },
 
+                moveLineUp(index) {
+                    const line = this.data.lines[index];
+                    let prevIndex = -1;
+                    for (let i = index - 1; i >= 0; i--) {
+                        if (this.data.lines[i].zone === line.zone) {
+                            prevIndex = i;
+                            break;
+                        }
+                    }
+                    if (prevIndex !== -1) {
+                        const temp = this.data.lines[index];
+                        this.data.lines[index] = this.data.lines[prevIndex];
+                        this.data.lines[prevIndex] = temp;
+                    }
+                },
+
+                moveLineDown(index) {
+                    const line = this.data.lines[index];
+                    let nextIndex = -1;
+                    for (let i = index + 1; i < this.data.lines.length; i++) {
+                        if (this.data.lines[i].zone === line.zone) {
+                            nextIndex = i;
+                            break;
+                        }
+                    }
+                    if (nextIndex !== -1) {
+                        const temp = this.data.lines[index];
+                        this.data.lines[index] = this.data.lines[nextIndex];
+                        this.data.lines[nextIndex] = temp;
+                    }
+                },
+
+                canMoveLineUp(index) {
+                    const line = this.data.lines[index];
+                    for (let i = index - 1; i >= 0; i--) {
+                        if (this.data.lines[i].zone === line.zone) return true;
+                    }
+                    return false;
+                },
+
+                canMoveLineDown(index) {
+                    const line = this.data.lines[index];
+                    for (let i = index + 1; i < this.data.lines.length; i++) {
+                        if (this.data.lines[i].zone === line.zone) return true;
+                    }
+                    return false;
+                },
+
                 addStation(line) {
                     if (!line.stations) line.stations = [];
                     line.stations.push({
@@ -350,6 +447,47 @@ class App {
                     });
                 },
 
+                focusStation(stationId) {
+                    this.editorVisible = true;
+                    this.activeTab = 'visual'; 
+                    
+                    let targetLineIndex = -1;
+                    let targetZoneIndex = -1;
+                    
+                    for (let z = 0; z < this.data.zones.length; z++) {
+                        const zoneLines = this.data.lines.filter(l => l.zone === this.data.zones[z].id);
+                        for (let l = 0; l < this.data.lines.length; l++) {
+                            if (this.data.lines[l].stations && this.data.lines[l].stations.some(s => s.id === stationId)) {
+                                targetLineIndex = l;
+                                targetZoneIndex = this.data.zones.findIndex(zone => zone.id === this.data.lines[l].zone);
+                                break;
+                            }
+                        }
+                        if (targetLineIndex !== -1) break;
+                    }
+
+                    if (targetZoneIndex !== -1) this.data.zones[targetZoneIndex].collapsed = false;
+                    
+                    this.$nextTick(() => { 
+                        const el = document.getElementById('editor-station-' + stationId); 
+                        if(el) { 
+                            const lineCard = el.closest('.line-card');
+                            if (lineCard) {
+                                // Need to dispatch a custom event to the specific line card because of isolated x-data
+                                lineCard.dispatchEvent(new CustomEvent('expand-line'));
+                            }
+                            
+                            setTimeout(() => {
+                                el.scrollIntoView({behavior: 'smooth', block: 'center'}); 
+                                el.style.transition = 'background-color 0.5s'; 
+                                const oldBg = el.style.backgroundColor; 
+                                el.style.backgroundColor = '#444'; 
+                                setTimeout(() => el.style.backgroundColor = oldBg, 1000);
+                            }, 50);
+                        } 
+                    });
+                },
+
                 getAllStations(excludeId) {
                     const all = [];
                     this.data.lines.forEach(line => {
@@ -412,8 +550,8 @@ class App {
                                 return;
                             }
 
-                            line.stations.forEach(station => {
-                                const typeLabel = {
+                            line.stations.forEach((station, index) => {
+                                let typeLabel = {
                                     'start': 'Start',
                                     'milestone': 'Meilenstein',
                                     'transfer': 'Wechsel',
@@ -421,7 +559,41 @@ class App {
                                     'existing': 'Bestehend'
                                 }[station.type] || station.type;
 
-                                md += `* **${station.date || '?'}:** ${station.label} (${typeLabel})\n`;
+                                if (station.isStop) {
+                                    typeLabel += ', Haltestelle';
+                                }
+
+                                // Convert date to object for duration calculation if needed
+                                const parseDate = (dateStr) => {
+                                    if (!dateStr) return null;
+                                    if (dateStr.includes('-Q')) {
+                                        const [year, q] = dateStr.split('-Q');
+                                        const month = (parseInt(q) - 1) * 3;
+                                        return new Date(year, month, 1);
+                                    }
+                                    return new Date(dateStr);
+                                };
+
+                                let durationText = '';
+                                if (index < line.stations.length - 1) {
+                                    const nextStation = line.stations[index + 1];
+                                    const currentDateObj = parseDate(station.date);
+                                    const nextDateObj = parseDate(nextStation.date);
+                                    
+                                    if (currentDateObj && nextDateObj) {
+                                        const diffTime = nextDateObj - currentDateObj;
+                                        const diffWeeks = Math.round(diffTime / (1000 * 60 * 60 * 24 * 7));
+                                        durationText = ` (Dauer bis ${nextStation.label}: ca. ${diffWeeks} Wochen)`;
+                                    }
+                                }
+
+                                md += `* **${station.date || '?'}:** ${station.label} (${typeLabel})${durationText}\n`;
+                                
+                                if (station.description && station.description.trim() !== '') {
+                                    // Indent description correctly for markdown list
+                                    const indentedDesc = station.description.split('\n').map(line => `  > ${line}`).join('\n');
+                                    md += `${indentedDesc}\n`;
+                                }
                                 
                                 if (station.transferTo) {
                                     const target = stationLookup.get(station.transferTo);

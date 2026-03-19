@@ -136,7 +136,7 @@
     </style>
 </head>
     <body x-data="metrovizApp" 
-          @focus-station.window="activeTab = 'visual'; $nextTick(() => { const el = document.getElementById('editor-station-' + $event.detail.id); if(el) { el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.style.transition = 'background-color 0.5s'; const oldBg = el.style.backgroundColor; el.style.backgroundColor = '#444'; setTimeout(() => el.style.backgroundColor = oldBg, 1000); } })"
+          @focus-station.window="focusStation($event.detail.id)"
           @toggle-zone.window="const z = data.zones.find(zone => zone.id === $event.detail.id); if (z) { z.collapsed = !z.collapsed; }">
     <header id="header">
         <div style="display: flex; align-items: center;">
@@ -161,24 +161,29 @@
             <h1>MetroViz</h1>
         </div>
         
-        <div class="view-switcher">
-            <button :class="{'active': globalView === 'map'}" @click="globalView = 'map'" title="Metro-Map Ansicht">
-                <svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
-                Metro-Map
-            </button>
-            <button :class="{'active': globalView === 'markdown'}" @click="globalView = 'markdown'" title="Klassische Projekt-Ansicht">
-                <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
-                Klassische Ansicht
-            </button>
+        <div style="display: flex; align-items: center; gap: 15px; margin: 0 20px;">
+            <div class="controls">
+                <button @click="editorVisible = !editorVisible" title="Editor ein-/ausblenden" :style="editorVisible ? 'background: #3d3d3d; border-color: #666; color: #fff;' : ''">
+                    <svg viewBox="0 0 24 24" x-show="editorVisible"><path d="M3 3h18v18H3V3zm12 2v14h4V5h-4zM5 5v14h8V5H5z"/></svg>
+                    <svg viewBox="0 0 24 24" x-show="!editorVisible" style="display:none;"><path d="M3 3h18v18H3V3zm4 2v14h12V5H7z"/></svg>
+                    <span>Edit</span>
+                </button>
+            </div>
+            
+            <div class="view-switcher" style="margin: 0;">
+                <button :class="{'active': globalView === 'map'}" @click="globalView = 'map'" title="Metro-Map Ansicht">
+                    <svg viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                    Metro-Map
+                </button>
+                <button :class="{'active': globalView === 'markdown'}" @click="globalView = 'markdown'" title="Textfassung">
+                    <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+                    Textfassung
+                </button>
+            </div>
         </div>
 
         <p id="subtitle" style="display:none;">Technologie-Roadmap</p>
         <div class="controls">
-            <button @click="editorVisible = !editorVisible" title="Editor ein-/ausblenden">
-                <svg viewBox="0 0 24 24" x-show="editorVisible"><path d="M3 3h18v18H3V3zm12 2v14h4V5h-4zM5 5v14h8V5H5z"/></svg>
-                <svg viewBox="0 0 24 24" x-show="!editorVisible" style="display:none;"><path d="M3 3h18v18H3V3zm4 2v14h12V5H7z"/></svg>
-                <span x-text="editorVisible ? 'Verbergen' : 'Anzeigen'"></span>
-            </button>
             <select x-model="currentFileName" @change="loadFile(currentFileName)">
                 <option value="">-- Ungespeichert --</option>
                 <template x-for="name in savedFiles" :key="name">
@@ -332,11 +337,13 @@
                         <button class="btn-small" @click="addLine()">+ Linie</button>
                     </div>
                     <template x-for="(line, lineIndex) in data.lines" :key="lineIndex">
-                        <div class="card line-card" :style="`border-left-color: ${line.color}`" x-data="{ collapsed: true }">
+                        <div class="card line-card" :style="`border-left-color: ${line.color}`" x-data="{ collapsed: true }" @expand-line="collapsed = false">
                             <!-- Clickable Header -->
-                            <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" @click="collapsed = !collapsed">
+                            <div class="line-header" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" @click="collapsed = !collapsed">
                                 <strong x-text="line.label || 'Neue Linie'" style="color: #e0e0e0; font-size: 13px;"></strong>
                                 <div style="display: flex; gap: 4px; align-items: center;">
+                                    <button class="btn-icon" style="width: 24px; height: 24px; font-size: 12px;" @click.stop="moveLineUp(lineIndex)" :disabled="!canMoveLineUp(lineIndex)" title="Nach oben">↑</button>
+                                    <button class="btn-icon" style="width: 24px; height: 24px; font-size: 12px;" @click.stop="moveLineDown(lineIndex)" :disabled="!canMoveLineDown(lineIndex)" title="Nach unten">↓</button>
                                     <button class="btn-icon btn-danger" style="width: 24px; height: 24px; font-size: 10px;" @click.stop="removeLine(lineIndex)" title="Linie Löschen">✕</button>
                                     <span x-text="collapsed ? '▼' : '▲'" style="font-size: 10px; color: #888; margin-left: 8px; width: 12px; text-align: center;"></span>
                                 </div>
@@ -378,11 +385,11 @@
                                                 <button class="btn-icon btn-danger" @click="removeStation(line, stationIndex)">✕</button>
                                             </div>
                                             <div class="form-row">
-                                                <div class="form-group">
+                                                <div class="form-group" style="flex: 1;">
                                                     <label>Datum</label>
                                                     <input type="text" x-model="station.date" placeholder="2022-Q1">
                                                 </div>
-                                                <div class="form-group">
+                                                <div class="form-group" style="flex: 2;">
                                                     <label>Typ</label>
                                                     <select x-model="station.type">
                                                         <option value="existing">Bestehend</option>
@@ -392,9 +399,23 @@
                                                         <option value="terminus">Ende</option>
                                                     </select>
                                                 </div>
-                                                <div class="form-group" style="display: flex; align-items: center; gap: 8px; justify-content: center; padding-top: 15px;">
+                                            </div>
+                                            <div class="form-row">
+                                                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
                                                     <input type="checkbox" x-model="station.tint" :id="'tint-' + station.id" style="width: auto;">
                                                     <label :for="'tint-' + station.id" style="margin: 0; cursor: pointer;">Linie verblassen</label>
+                                                </div>
+                                                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" x-model="station.isStop" :id="'stop-' + station.id" style="width: auto;">
+                                                    <label :for="'stop-' + station.id" style="margin: 0; cursor: pointer;">Haltestelle</label>
+                                                </div>
+                                            </div>
+                                            <div class="form-row" style="margin-top: 4px;" x-data="{ showDesc: false }">
+                                                <div style="width: 100%;">
+                                                    <button class="btn-small" style="width: 100%; margin-bottom: 4px; background: transparent; border: 1px dashed #444; color: #888;" @click="showDesc = !showDesc" x-text="showDesc ? 'Beschreibung ausblenden' : (station.description ? 'Beschreibung bearbeiten' : '+ Beschreibung hinzufügen')"></button>
+                                                    <div x-show="showDesc" style="margin-top: 8px;">
+                                                        <textarea x-model="station.description" placeholder="Markdown Beschreibung..." rows="4" style="width: 100%; padding: 6px 8px; background: #2d2d2d; border: 1px solid #444; color: #fff; border-radius: 4px; resize: vertical; font-family: monospace; font-size: 12px;"></textarea>
+                                                    </div>
                                                 </div>
                                             </div>
                                             

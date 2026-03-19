@@ -423,6 +423,32 @@ export class MetroRenderer {
                         .attr('fill', '#fff')
                         .attr('class', `station-circle line-${line.id}`)
                         .style('cursor', 'pointer');
+                } else if (station.isStop) {
+                    // Stop (Haltestelle) - 90 degree line
+                    interactiveElement = normalStationsGroup.append('line')
+                        .attr('x1', station.x)
+                        .attr('y1', station.y - 8)
+                        .attr('x2', station.x)
+                        .attr('y2', station.y + 8)
+                        .attr('stroke', stationColor)
+                        .attr('stroke-width', 4)
+                        .attr('stroke-linecap', 'round')
+                        .attr('class', `station-stop line-${line.id}`)
+                        .style('cursor', 'pointer');
+                    
+                    // Add a transparent circle overlay for better hover/click area
+                    const hoverArea = normalStationsGroup.append('circle')
+                        .attr('cx', station.x)
+                        .attr('cy', station.y)
+                        .attr('r', 10)
+                        .attr('fill', 'transparent')
+                        .style('cursor', 'pointer');
+                    
+                    // Link the hoverArea events to the interactiveElement logic
+                    hoverArea.on('mouseover', (event) => interactiveElement.dispatch('mouseover', {bubbles: true, detail: event}))
+                             .on('mouseout', (event) => interactiveElement.dispatch('mouseout', {bubbles: true, detail: event}))
+                             .on('click', (event) => interactiveElement.dispatch('click', {bubbles: true, detail: event}));
+                             
                 } else {
                     // Normal Station
                     interactiveElement = normalStationsGroup.append('circle')
@@ -438,27 +464,59 @@ export class MetroRenderer {
 
                 // Tooltip events
                 interactiveElement.on('mouseover', (event) => {
+                    // Unwrap the detail if this came from the hoverArea transparent circle
+                    const realEvent = event.detail && event.detail.pageX ? event.detail : event;
+                    
+                    let durationText = '';
+                    if (index < line.stations.length - 1) {
+                        const nextStation = line.stations[index + 1];
+                        if (station.dateObj && nextStation.dateObj) {
+                            const diffTime = nextStation.dateObj - station.dateObj;
+                            const diffWeeks = Math.round(diffTime / (1000 * 60 * 60 * 24 * 7));
+                            durationText = `<br/>Dauer bis ${nextStation.label}: ca. ${diffWeeks} Wochen`;
+                        }
+                    }
+
+                    let descHtml = '';
+                    if (station.description && station.description.trim() !== '') {
+                        let parsedMd = typeof marked !== 'undefined' ? marked.parse(station.description) : station.description;
+                        descHtml = `<div class="tooltip-desc">${parsedMd}</div>`;
+                    }
+                    
                     this.tooltip.classed('hidden', false)
                         .html(`
                             <strong>${station.label}</strong><br/>
                             Linie: ${line.label}<br/>
-                            Datum: ${station.date}
+                            Datum: ${station.date}${durationText}
+                            ${descHtml}
                         `)
-                        .style('left', (event.pageX + 15) + 'px')
-                        .style('top', (event.pageY - 15) + 'px');
+                        .style('left', (realEvent.pageX + 15) + 'px')
+                        .style('top', (realEvent.pageY - 15) + 'px');
                     
-                    d3.select(event.target).attr('r', 8);
+                    if (!station.isStop) {
+                        d3.select(event.target).attr('r', 8);
+                    } else {
+                        d3.select(event.target).attr('stroke-width', 6);
+                    }
                 }).on('mouseout', (event) => {
                     this.tooltip.classed('hidden', true);
-                    d3.select(event.target).attr('r', 6);
+                    if (!station.isStop) {
+                        d3.select(event.target).attr('r', 6);
+                    } else {
+                        d3.select(event.target).attr('stroke-width', 4);
+                    }
                 }).on('click', (event) => {
-                    event.stopPropagation();
+                    const realEvent = event.detail && event.detail.stopPropagation ? event.detail : event;
+                    realEvent.stopPropagation();
                     this.highlightLine(line.id);
                     // Dispatch custom event to trigger Alpine scroll
                     window.dispatchEvent(new CustomEvent('focus-station', {
                         detail: { id: station.id }
                     }));
                 });
+
+                // Skip drawing label text permanently on map if it is a stop (Haltestelle)
+                if (station.isStop) return;
 
                 // Station label collision detection
                 const width = station.label.length * 6.5; 
