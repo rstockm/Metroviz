@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "IT-Strategie 2026-2028",
+    "title": "IT-Strategie 2026-2027",
     "organization": "ZLB"
   },
   "timeline": {
@@ -30,13 +30,13 @@
       "id": "filecloud",
       "label": "Dateicloud",
       "color": "#27AE60",
-      "collapsed": false
+      "collapsed": true
     },
     {
       "id": "mobil",
       "label": "Mobiles Arbeiten",
       "color": "#6f3bb0",
-      "collapsed": false
+      "collapsed": true
     }
   ],
   "lines": [
@@ -64,6 +64,12 @@
           "id": "station-k1th66",
           "label": "Power-User",
           "date": "2027-Q3",
+          "type": "milestone"
+        },
+        {
+          "id": "station-c62jxz",
+          "label": "Office 2021",
+          "date": "2026-Q2",
           "type": "milestone"
         }
       ]
@@ -145,7 +151,7 @@
         {
           "id": "ox-mig",
           "label": "Outlook 365",
-          "date": "2026-Q4",
+          "date": "2026-08-01",
           "type": "transfer",
           "tint": true
         },
@@ -153,6 +159,12 @@
           "id": "station-w59lux",
           "label": "Legacy-Systeme",
           "date": "2027-Q3",
+          "type": "milestone"
+        },
+        {
+          "id": "station-7rortj",
+          "label": "Outlook 2021",
+          "date": "2026-Q2",
           "type": "milestone"
         }
       ]
@@ -198,7 +210,7 @@
         {
           "id": "station-vqf14w",
           "label": "Ablösung",
-          "date": "2026-Q4",
+          "date": "2026-08-01",
           "type": "transfer",
           "tint": true
         },
@@ -219,15 +231,16 @@
       "stations": [
         {
           "id": "station-bzczvp",
-          "label": "Ausschreibung",
+          "label": "Ausschreibungsvorbereitung",
           "date": "2026-Q2",
           "type": "milestone",
-          "tint": true
+          "tint": true,
+          "description": "- Leistungsverzeichnisses und Ausschreibungsvorbereitung\n- bei sehr straffer Bearbeitung etwa 2 Wochen"
         },
         {
           "id": "station-z7ngmi",
           "label": "Migration",
-          "date": "2026-Q4",
+          "date": "2026-08-01",
           "type": "transfer",
           "transferTo": "station-vqf14w"
         },
@@ -236,12 +249,28 @@
           "label": "Regelbetrieb",
           "date": "2027-Q3",
           "type": "milestone"
+        },
+        {
+          "id": "station-agazqp",
+          "label": "Ausschreibung",
+          "date": "2026-04-15",
+          "type": "milestone",
+          "isStop": true,
+          "tint": true
+        },
+        {
+          "id": "station-el19sf",
+          "label": "Ende Bindefrist",
+          "date": "2026-06-01",
+          "type": "milestone",
+          "isStop": true,
+          "tint": true
         }
       ]
     },
     {
       "id": "line-4q0pun",
-      "label": "Open Source Groupware (tba)",
+      "label": "Mailbox.org (Web)",
       "color": "#14a40a",
       "zone": "groupware",
       "stations": [
@@ -262,7 +291,7 @@
         {
           "id": "station-ocn5cb",
           "label": "Migration",
-          "date": "2026-Q4",
+          "date": "2026-08-01",
           "type": "transfer",
           "transferTo": "ox-mig"
         },
@@ -414,6 +443,40 @@
           "date": "2027-Q2",
           "type": "terminus",
           "transferTo": "station-gond02"
+        }
+      ]
+    },
+    {
+      "id": "line-jtwyfs",
+      "label": "Thunderbird (Client)",
+      "color": "#5fe119",
+      "zone": "groupware",
+      "stations": [
+        {
+          "id": "station-7c7j7p",
+          "label": "Freischaltung durch ITDZ",
+          "date": "2026-Q3",
+          "type": "milestone"
+        },
+        {
+          "id": "station-bhswlp",
+          "label": "Lobbyarbeit",
+          "date": "2026-Q2",
+          "type": "milestone",
+          "tint": true
+        },
+        {
+          "id": "station-uveq4k",
+          "label": "",
+          "date": "2026-08-01",
+          "type": "transfer",
+          "transferTo": "station-ocn5cb"
+        },
+        {
+          "id": "station-4leauh",
+          "label": "Regelbetrieb",
+          "date": "2027-Q3",
+          "type": "milestone"
         }
       ]
     }
