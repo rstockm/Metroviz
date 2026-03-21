@@ -30,19 +30,29 @@ class App {
                     lines: []
                 },
 
-                init() {
+                async init() {
                     this.loadIndex();
                     this.parseUrlParams();
 
-                    if (this.currentFileName && this.savedFiles.includes(this.currentFileName)) {
-                        this.loadFile(this.currentFileName);
-                    } else if (this.savedFiles.length > 0) {
-                        this.currentFileName = this.savedFiles[0];
-                        this.loadFile(this.currentFileName);
-                    } else {
-                        this.loadInitialData();
+                    let loaded = false;
+                    if (this._urlHadData) {
+                        this.updateFromJson();
+                        loaded = true;
                     }
-                    
+                    if (!loaded && this._urlSource) {
+                        loaded = await this.loadFromRemoteSource(this._urlSource);
+                    }
+                    if (!loaded) {
+                        if (this.currentFileName && this.savedFiles.includes(this.currentFileName)) {
+                            this.loadFile(this.currentFileName);
+                        } else if (this.savedFiles.length > 0) {
+                            this.currentFileName = this.savedFiles[0];
+                            this.loadFile(this.currentFileName);
+                        } else {
+                            await this.loadInitialData();
+                        }
+                    }
+
                     // Set initial URL state correctly if it was defaulted
                     this.updateUrlParams();
 
@@ -78,7 +88,10 @@ class App {
 
                 parseUrlParams() {
                     const params = new URLSearchParams(window.location.search);
-                    
+
+                    this._urlHadData = false;
+                    this._urlSource = null;
+
                     if (params.has('editor')) {
                         this.editorVisible = params.get('editor') === '1' || params.get('editor') === 'true';
                     }
@@ -96,10 +109,26 @@ class App {
                             this.currentFileName = f;
                         }
                     }
+
+                    if (params.has('data') && typeof window.LZString !== 'undefined') {
+                        const decompressed = window.LZString.decompressFromEncodedURIComponent(params.get('data'));
+                        if (decompressed) {
+                            this.rawJson = decompressed;
+                            this.currentFileName = '';
+                            this._urlHadData = true;
+                        }
+                    }
+
+                    const sourceParam = params.get('source');
+                    if (sourceParam && sourceParam.trim()) {
+                        this._urlSource = sourceParam.trim();
+                    }
                 },
 
                 updateUrlParams() {
                     const url = new URL(window.location);
+                    url.searchParams.delete('data');
+                    url.searchParams.delete('source');
                     url.searchParams.set('editor', this.editorVisible ? '1' : '0');
                     url.searchParams.set('view', this.globalView);
                     
@@ -110,6 +139,42 @@ class App {
                     }
                     
                     window.history.replaceState({}, '', url);
+                },
+
+                generateShareLink() {
+                    if (typeof window.LZString === 'undefined') {
+                        alert('Kompression nicht verfügbar.');
+                        return;
+                    }
+                    if (!this.rawJson || !this.rawJson.trim()) {
+                        alert('Keine JSON-Daten vorhanden.');
+                        return;
+                    }
+                    const compressed = window.LZString.compressToEncodedURIComponent(this.rawJson);
+                    const shareUrl = window.location.origin + window.location.pathname + '?data=' + compressed;
+                    navigator.clipboard.writeText(shareUrl).then(() => {
+                        alert('Link kopiert');
+                    }).catch(() => {
+                        alert('Kopieren fehlgeschlagen');
+                    });
+                },
+
+                async loadFromRemoteSource(url) {
+                    this.jsonError = '';
+                    try {
+                        const response = await fetch(url);
+                        if (!response.ok) {
+                            this.jsonError = 'Remote-Laden fehlgeschlagen (HTTP ' + response.status + ').';
+                            return false;
+                        }
+                        this.rawJson = await response.text();
+                        this.currentFileName = '';
+                        this.updateFromJson();
+                        return true;
+                    } catch (e) {
+                        this.jsonError = 'Remote-Laden fehlgeschlagen: ' + e.message;
+                        return false;
+                    }
                 },
 
                 saveIndex() {

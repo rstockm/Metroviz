@@ -16,6 +16,8 @@ MetroViz ist ein leichtgewichtiges Framework zur Visualisierung strategischer Te
 * **Intelligentes Routing**: Linien weichen einander automatisch aus, Labels platzieren sich per Kollisionserkennung dynamisch so, dass sie sich nicht überlappen, und Transfer-Linien biegen sich physikalisch korrekt zueinander.
 * **Lokale Persistenz**: Alle Änderungen, neue Roadmaps oder Kopien werden automatisch und lokal im `localStorage` des Browsers gesichert. Es ist keine Datenbankanbindung notwendig.
 * **URL-State-Management**: Ansichten (Editor, Map, Textfassung) und die geladene Datei sind über die URL teil- und speicherbar (z.B. für Lesezeichen).
+* **Teilen per Link (`?data=`)**: Über „Teilen“ wird die aktuelle Roadmap als mit LZ-String komprimierter Parameter in die URL gelegt; der Link lässt sich kopieren und öffnet dieselben Daten ohne Backend (nach dem ersten Laden werden `data`/`source` aus der Adresszeile entfernt, um kurze URLs zu behalten).
+* **Remote-Laden (`?source=`)**: Eine Roadmap kann per `?source=<URL-zu-einer-.json-Datei>` von einem beliebigen Host geladen werden, sofern CORS den Abruf erlaubt (bei Fehlern erscheint eine Meldung im Editor).
 * **Export-Funktionen**:
   * **SVG-Export**: Die generierte Metro-Map lässt sich verlustfrei als Vektorgrafik herunterladen.
   * **JSON-Export**: Die Rohdaten können zur Sicherung oder Weitergabe exportiert werden.
@@ -38,6 +40,16 @@ MetroViz ist als 100% statische, clientseitige Web-App konzipiert ("Serverless")
 ### Datenhaltung
 * **JSON**: Das zentrale Datenformat für die Definition der Roadmaps.
 * **localStorage API**: Wird für die clientseitige Persistenz der verschiedenen Dateien genutzt.
+
+### URL-Parameter (dezentrales Laden)
+
+Priorität beim Start: `data` (komprimierter Inhalt) vor `source` (Remote-URL) vor `file` (gespeicherte lokale Datei) vor zuletzt genutzter bzw. Beispiel-Roadmap.
+
+| Parameter | Beschreibung |
+|-----------|--------------|
+| `data` | LZ-String-komprimierter JSON-Text (URL-kodiert), wie vom Teilen-Button erzeugt. |
+| `source` | Vollständige HTTPS-URL einer `.json`-Datei; der Server muss passende CORS-Header senden. |
+| `editor`, `view`, `file` | Wie bisher: Editor sichtbar, Ansicht (map/markdown), gewählte lokale Datei aus dem Index. |
 
 ## Lokale Ausführung
 
