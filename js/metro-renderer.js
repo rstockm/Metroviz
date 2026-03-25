@@ -102,7 +102,14 @@ export class MetroRenderer {
             .attr('height', '100%')
             .attr('viewBox', `0 0 ${config.width} ${config.height}`)
             .attr('preserveAspectRatio', 'xMidYMid meet')
-            .attr('xmlns', 'http://www.w3.org/2000/svg');
+            .attr('xmlns', 'http://www.w3.org/2000/svg')
+            .style('background-color', '#ffffff');
+
+        // Add explicit white background rect for exports
+        svg.append('rect')
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .attr('fill', '#ffffff');
 
         const zoomGroup = svg.append('g').attr('class', 'zoom-group');
 
