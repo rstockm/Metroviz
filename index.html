@@ -458,8 +458,8 @@
                         <h3>Events (Deadlines, Termine)</h3>
                         <button class="btn-small" @click="addEvent()">+ Event</button>
                     </div>
-                    <template x-for="(event, index) in data.events" :key="index">
-                        <div class="card">
+                    <template x-for="(event, index) in data.events" :key="event.id || index">
+                        <div class="card" :id="'editor-event-' + (event.id || index)">
                             <div class="form-row">
                                 <div class="form-group" style="flex: 2;">
                                     <label>Label</label>
@@ -482,8 +482,8 @@
                         <h3>Zonen (Themenbereiche)</h3>
                         <button class="btn-small" @click="addZone()">+ Zone</button>
                     </div>
-                    <template x-for="(zone, index) in data.zones" :key="index">
-                        <div class="card" x-data="{ collapsed: true }">
+                    <template x-for="(zone, index) in data.zones" :key="zone.id || index">
+                        <div class="card" :id="'editor-zone-' + (zone.id || index)" x-data="{ collapsed: true }" @expand-zone="collapsed = false">
                             <!-- Clickable Header -->
                             <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" @click="collapsed = !collapsed">
                                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -505,9 +505,19 @@
                                         <label>ID</label>
                                         <input type="text" x-model="zone.id">
                                     </div>
-                                    <div class="form-group">
+                                    <div class="form-group metro-color-field" x-data="{ paletteOpen: false }" @click.outside="paletteOpen = false">
                                         <label>Farbe</label>
-                                        <input type="color" x-model="zone.color">
+                                        <button type="button" x-ref="metroPaletteTrigger" class="metro-color-trigger" :style="'background-color:' + (zone.color || '#cccccc')" @click.stop="paletteOpen = !paletteOpen; if (paletteOpen) $nextTick(() => $nextTick(() => window.metrovizPositionPalette($refs.metroPaletteTrigger, $refs.metroPaletteMenu)))" :aria-expanded="paletteOpen" title="Farbe wählen"></button>
+                                        <div class="metro-palette-dropdown" x-ref="metroPaletteMenu" x-show="paletteOpen" x-cloak @click.stop role="group" :aria-label="'Zonenfarbe: ' + (zone.label || zone.id)">
+                                            <div class="metro-palette metro-palette--compact">
+                                                <template x-if="zone.color && !colorInMetroPalette(zone.color)">
+                                                    <button type="button" class="metro-swatch metro-swatch--compact metro-swatch--custom metro-swatch--active" :style="'background-color:' + zone.color" title="Aktuelle Farbe (nicht in Palette)" tabindex="-1" aria-hidden="true"></button>
+                                                </template>
+                                                <template x-for="c in metroPalette" :key="c">
+                                                    <button type="button" class="metro-swatch metro-swatch--compact" :style="'background-color:' + c" :title="c" :class="{ 'metro-swatch--active': paletteColorsEqual(zone.color, c) }" @click="zone.color = c; paletteOpen = false"></button>
+                                                </template>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="form-group">
@@ -524,8 +534,8 @@
                         <h3>Linien (Technologien)</h3>
                         <button class="btn-small" @click="addLine()">+ Linie</button>
                     </div>
-                    <template x-for="(line, lineIndex) in data.lines" :key="lineIndex">
-                        <div class="card line-card" :style="`border-left-color: ${line.color}`" x-data="{ collapsed: true }" @expand-line="collapsed = false">
+                    <template x-for="(line, lineIndex) in data.lines" :key="line.id || lineIndex">
+                        <div class="card line-card" :id="'editor-line-' + (line.id || lineIndex)" :style="`border-left-color: ${line.color}`" x-data="{ collapsed: true }" @expand-line="collapsed = false">
                             <!-- Clickable Header -->
                             <div class="line-header" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" @click="collapsed = !collapsed">
                                 <strong x-text="line.label || 'Neue Linie'" style="color: #e0e0e0; font-size: 13px;"></strong>
@@ -544,9 +554,19 @@
                                         <label>Name</label>
                                         <input type="text" x-model="line.label">
                                     </div>
-                                    <div class="form-group" style="flex: 1;">
+                                    <div class="form-group metro-color-field" style="flex: 1;" x-data="{ paletteOpen: false }" @click.outside="paletteOpen = false">
                                         <label>Farbe</label>
-                                        <input type="color" x-model="line.color">
+                                        <button type="button" x-ref="metroPaletteTrigger" class="metro-color-trigger" :style="'background-color:' + (line.color || '#0078D4')" @click.stop="paletteOpen = !paletteOpen; if (paletteOpen) $nextTick(() => $nextTick(() => window.metrovizPositionPalette($refs.metroPaletteTrigger, $refs.metroPaletteMenu)))" :aria-expanded="paletteOpen" title="Farbe wählen"></button>
+                                        <div class="metro-palette-dropdown" x-ref="metroPaletteMenu" x-show="paletteOpen" x-cloak @click.stop role="group" :aria-label="'Linienfarbe: ' + (line.label || line.id)">
+                                            <div class="metro-palette metro-palette--compact">
+                                                <template x-if="line.color && !colorInMetroPalette(line.color)">
+                                                    <button type="button" class="metro-swatch metro-swatch--compact metro-swatch--custom metro-swatch--active" :style="'background-color:' + line.color" title="Aktuelle Farbe (nicht in Palette)" tabindex="-1" aria-hidden="true"></button>
+                                                </template>
+                                                <template x-for="c in metroPalette" :key="c">
+                                                    <button type="button" class="metro-swatch metro-swatch--compact" :style="'background-color:' + c" :title="c" :class="{ 'metro-swatch--active': paletteColorsEqual(line.color, c) }" @click="line.color = c; paletteOpen = false"></button>
+                                                </template>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="form-row">
@@ -597,16 +617,12 @@
                                                     <input type="checkbox" x-model="station.isStop" :id="'stop-' + station.id" style="width: auto;">
                                                     <label :for="'stop-' + station.id" style="margin: 0; cursor: pointer;">Haltestelle</label>
                                                 </div>
-                                            </div>
-                                            <div class="form-row" style="margin-top: 4px;" x-data="{ showDesc: false }">
-                                                <div style="width: 100%;">
-                                                    <button class="btn-small" style="width: 100%; margin-bottom: 4px; background: transparent; border: 1px dashed #444; color: #888;" @click="showDesc = !showDesc" x-text="showDesc ? 'Beschreibung ausblenden' : (station.description ? 'Beschreibung bearbeiten' : '+ Beschreibung hinzufügen')"></button>
-                                                    <div x-show="showDesc" style="margin-top: 8px;">
-                                                        <textarea x-model="station.description" placeholder="Markdown Beschreibung..." rows="4" style="width: 100%; padding: 6px 8px; background: #2d2d2d; border: 1px solid #444; color: #fff; border-radius: 4px; resize: vertical; font-family: monospace; font-size: 12px;"></textarea>
-                                                    </div>
+                                                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                                                    <input type="checkbox" x-model="station.flipLabel" :id="'flip-' + station.id" style="width: auto;">
+                                                    <label :for="'flip-' + station.id" style="margin: 0; cursor: pointer;">Label spiegeln</label>
                                                 </div>
                                             </div>
-                                            
+
                                             <!-- Transfer Options -->
                                             <template x-if="['transfer', 'terminus'].includes(station.type)">
                                                 <div class="form-group" style="margin-top: 8px;">
@@ -619,6 +635,36 @@
                                                     </select>
                                                 </div>
                                             </template>
+
+                                            <div class="form-group" style="margin-top: 8px;">
+                                                <label>Beziehungen</label>
+                                                <template x-for="(rel, relIdx) in (station.relations || [])" :key="relIdx">
+                                                    <div class="form-row" style="flex-wrap: wrap; align-items: flex-end; gap: 6px; margin-bottom: 6px;">
+                                                        <select x-model="rel.kind" style="flex: 1; min-width: 120px;">
+                                                            <option value="dependsOn">Abhängig von</option>
+                                                            <option value="synchronizedWith">Zeitgleich mit</option>
+                                                        </select>
+                                                        <select x-model="rel.target" style="flex: 2; min-width: 140px;">
+                                                            <option value="">-- Ziel --</option>
+                                                            <template x-for="s in getAllStations(station.id)">
+                                                                <option :value="s.id" x-text="s.label + ' (' + s.lineLabel + ')'"></option>
+                                                            </template>
+                                                        </select>
+                                                        <input type="text" x-model="rel.label" placeholder="Notiz (optional)" style="flex: 2; min-width: 100px;">
+                                                        <button type="button" class="btn-icon btn-danger" @click="removeStationRelation(station, relIdx)" title="Entfernen">✕</button>
+                                                    </div>
+                                                </template>
+                                                <button type="button" class="btn-small" @click="addStationRelation(station)">+ Beziehung</button>
+                                            </div>
+
+                                            <div class="form-row" style="margin-top: 8px;" x-data="{ showDesc: false }">
+                                                <div style="width: 100%;">
+                                                    <button class="btn-small" style="width: 100%; margin-bottom: 4px; background: transparent; border: 1px dashed #444; color: #888;" @click="showDesc = !showDesc" x-text="showDesc ? 'Beschreibung ausblenden' : (station.description ? 'Beschreibung bearbeiten' : '+ Beschreibung hinzufügen')"></button>
+                                                    <div x-show="showDesc" style="margin-top: 8px;">
+                                                        <textarea x-model="station.description" placeholder="Markdown Beschreibung..." rows="4" style="width: 100%; padding: 6px 8px; background: #2d2d2d; border: 1px solid #444; color: #fff; border-radius: 4px; resize: vertical; font-family: monospace; font-size: 12px;"></textarea>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </template>
                                 </div>

@@ -2,6 +2,74 @@ import { DataModel } from './data-model.js';
 import { LayoutEngine } from './layout-engine.js';
 import { MetroRenderer } from './metro-renderer.js';
 
+function hexToHsv(hex) {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const d = max - min;
+    const v = max;
+    const s = max === 0 ? 0 : d / max;
+    let h = 0;
+    if (d > 1e-6) {
+        if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+        else if (max === g) h = ((b - r) / d + 2) / 6;
+        else h = ((r - g) / d + 4) / 6;
+    }
+    return { h: h * 360, s, v };
+}
+
+/** Sortierung nach Regenbogen (Farbton); entsättigte Grautöne zuletzt nach Helligkeit */
+function sortPaletteRainbow(hexes) {
+    return [...hexes].sort((a, b) => {
+        const A = hexToHsv(a);
+        const B = hexToHsv(b);
+        const grayA = A.s < 0.15;
+        const grayB = B.s < 0.15;
+        if (grayA !== grayB) return grayA ? 1 : -1;
+        if (grayA && grayB) return B.v - A.v;
+        return A.h - B.h;
+    });
+}
+
+const METRO_PALETTE_BASE = [
+    '#E32017', '#003688', '#0019A8', '#009A44', '#007229',
+    '#FFD300', '#F4A9BE', '#9B0056', '#B36305', '#00A0E2',
+    '#76D0BD', '#00AFAD', '#EE7623', '#9364CC', '#66C028',
+    '#0064B0', '#8BC75F', '#E3000F', '#6F1D55', '#62259D',
+    '#FF6319', '#2850AD', '#6CBE45', '#FCCC0A', '#CCCCCC',
+    '#B933AD', '#996633', '#0078D4', '#17B890', '#7B208B'
+];
+
+/** Farbpalette fixed im Viewport ausrichten (Editor hat overflow → kein Abschneiden). */
+function positionMetroPaletteDropdown(triggerEl, menuEl) {
+    if (!triggerEl || !menuEl) return;
+    const margin = 8;
+    const rect = triggerEl.getBoundingClientRect();
+    const estW = 6 * 32 + 5 * 3 + 12 + 2 * 6;
+    const estH = 6 * 32 + 5 * 3 + 12 + 2 * 6;
+    let w = menuEl.offsetWidth;
+    let h = menuEl.offsetHeight;
+    if (w < 40) w = estW;
+    if (h < 40) h = estH;
+    let left = rect.right - w;
+    left = Math.max(margin, Math.min(left, window.innerWidth - w - margin));
+    let top = rect.bottom + 4;
+    if (top + h > window.innerHeight - margin) {
+        top = rect.top - h - 4;
+    }
+    top = Math.max(margin, Math.min(top, window.innerHeight - h - margin));
+    menuEl.style.position = 'fixed';
+    menuEl.style.left = `${Math.round(left)}px`;
+    menuEl.style.top = `${Math.round(top)}px`;
+    menuEl.style.right = 'auto';
+}
+
+if (typeof window !== 'undefined') {
+    window.metrovizPositionPalette = positionMetroPaletteDropdown;
+}
+
 class App {
     constructor() {
         this.dataModel = new DataModel();
@@ -31,6 +99,9 @@ class App {
                 dialogMessage: '',
                 dialogInput: '',
                 _dialogResolve: null,
+                /** 30 Metro-Kartenfarben, nach Regenbogen (HSV-Farbton) sortiert */
+                metroPalette: sortPaletteRainbow(METRO_PALETTE_BASE),
+
                 data: {
                     meta: { title: '', organization: '' },
                     timeline: { start: '', end: '' },
@@ -452,13 +523,44 @@ class App {
                     return prefix + '-' + Math.random().toString(36).substr(2, 6);
                 },
 
+                paletteColorsEqual(a, b) {
+                    if (a == null || b == null) return false;
+                    return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+                },
+
+                colorInMetroPalette(hex) {
+                    return this.metroPalette.some((c) => this.paletteColorsEqual(c, hex));
+                },
+
+                scrollVisualEditorItemToView(domId) {
+                    this.activeTab = 'visual';
+                    this.$nextTick(() => {
+                        requestAnimationFrame(() => {
+                            const el = document.getElementById(domId);
+                            if (!el) return;
+                            const lineCard = el.closest('.line-card');
+                            if (lineCard) {
+                                lineCard.dispatchEvent(new CustomEvent('expand-line'));
+                            }
+                            if (domId.startsWith('editor-zone-')) {
+                                el.dispatchEvent(new CustomEvent('expand-zone'));
+                            }
+                            setTimeout(() => {
+                                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            }, 50);
+                        });
+                    });
+                },
+
                 addEvent() {
                     if (!this.data.events) this.data.events = [];
+                    const id = this.generateId('event');
                     this.data.events.push({
-                        id: this.generateId('event'),
+                        id,
                         label: 'Neues Event',
                         date: this.data.timeline.start || '2025-Q1'
                     });
+                    this.scrollVisualEditorItemToView('editor-event-' + id);
                 },
 
                 removeEvent(index) {
@@ -466,11 +568,13 @@ class App {
                 },
 
                 addZone() {
+                    const id = this.generateId('zone');
                     this.data.zones.push({
-                        id: this.generateId('zone'),
+                        id,
                         label: 'Neue Zone',
                         color: '#cccccc'
                     });
+                    this.scrollVisualEditorItemToView('editor-zone-' + id);
                 },
 
                 removeZone(index) {
@@ -495,13 +599,15 @@ class App {
 
                 addLine() {
                     const zoneId = this.data.zones.length > 0 ? this.data.zones[0].id : '';
+                    const id = this.generateId('line');
                     this.data.lines.push({
-                        id: this.generateId('line'),
+                        id,
                         label: 'Neue Linie',
                         color: '#0078D4',
                         zone: zoneId,
                         stations: []
                     });
+                    this.scrollVisualEditorItemToView('editor-line-' + id);
                 },
 
                 removeLine(index) {
@@ -558,16 +664,29 @@ class App {
 
                 addStation(line) {
                     if (!line.stations) line.stations = [];
+                    const id = this.generateId('station');
                     line.stations.push({
-                        id: this.generateId('station'),
+                        id,
                         label: 'Neue Station',
                         date: this.data.timeline.start || '2025-Q1',
                         type: 'milestone'
                     });
+                    this.scrollVisualEditorItemToView('editor-station-' + id);
                 },
 
                 removeStation(line, index) {
                     line.stations.splice(index, 1);
+                },
+
+                addStationRelation(station) {
+                    if (!station.relations) station.relations = [];
+                    station.relations.push({ kind: 'dependsOn', target: '', label: '' });
+                },
+
+                removeStationRelation(station, index) {
+                    if (!station.relations) return;
+                    station.relations.splice(index, 1);
+                    if (station.relations.length === 0) delete station.relations;
                 },
 
                 resortAndClean() {
@@ -617,6 +736,25 @@ class App {
                                 }
                                 if (station.transferFrom && !validStationIds.has(station.transferFrom)) {
                                     delete station.transferFrom;
+                                }
+
+                                if (Array.isArray(station.relations)) {
+                                    station.relations = station.relations.filter((rel) => {
+                                        if (!rel || !rel.target) return false;
+                                        if (!['dependsOn', 'synchronizedWith'].includes(rel.kind)) return false;
+                                        return validStationIds.has(rel.target);
+                                    });
+                                    const seenSync = new Set();
+                                    station.relations = station.relations.filter((rel) => {
+                                        if (rel.kind !== 'synchronizedWith') return true;
+                                        const a = station.id < rel.target ? station.id : rel.target;
+                                        const b = station.id < rel.target ? rel.target : station.id;
+                                        const k = `${a}:${b}`;
+                                        if (seenSync.has(k)) return false;
+                                        seenSync.add(k);
+                                        return true;
+                                    });
+                                    if (station.relations.length === 0) delete station.relations;
                                 }
                             });
                         }
@@ -777,6 +915,22 @@ class App {
                                         const targetLine = lineLookup.get(target.lineId);
                                         md += `  * ↳ *Übergabe an: ${target.label} (Arbeitspaket: ${targetLine})*\n`;
                                     }
+                                }
+
+                                if (Array.isArray(station.relations)) {
+                                    station.relations.forEach((rel) => {
+                                        if (!rel || !rel.target) return;
+                                        if (rel.kind === 'synchronizedWith' && station.id >= rel.target) return;
+                                        const tgt = stationLookup.get(rel.target);
+                                        if (!tgt) return;
+                                        const tgtLine = lineLookup.get(tgt.lineId);
+                                        const note = rel.label ? ` (${rel.label})` : '';
+                                        if (rel.kind === 'synchronizedWith') {
+                                            md += `  * ↳ *Zeitgleich mit: ${tgt.label} (${tgtLine})*${note}\n`;
+                                        } else {
+                                            md += `  * ↳ *Abhängig von: ${tgt.label} (${tgtLine})*${note}\n`;
+                                        }
+                                    });
                                 }
                             });
                             md += '\n';

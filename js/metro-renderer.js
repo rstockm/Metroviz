@@ -1,7 +1,39 @@
+/** Orthogonaler Pfad (nur horizontale/vertikale Segmente) zwischen zwei Stationen. */
+function buildOrthogonalRelationPath(sx, sy, tx, ty) {
+    const off = 14;
+    const dx = tx - sx;
+    const dy = ty - sy;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return '';
+
+    if (Math.abs(dx) >= Math.abs(dy)) {
+        const sgn = dx === 0 ? Math.sign(dy || 1) : Math.sign(dx);
+        const x0 = sx + sgn * off;
+        const y0 = sy;
+        const x1 = tx - sgn * off;
+        const y1 = ty;
+        if (Math.abs(y1 - y0) < 1) {
+            return `M${x0},${y0}L${x1},${y1}`;
+        }
+        const xMid = (x0 + x1) / 2;
+        return `M${x0},${y0}L${xMid},${y0}L${xMid},${y1}L${x1},${y1}`;
+    }
+    const sgn = dy === 0 ? Math.sign(dx || 1) : Math.sign(dy);
+    const x0 = sx;
+    const y0 = sy + sgn * off;
+    const x1 = tx;
+    const y1 = ty - sgn * off;
+    if (Math.abs(x1 - x0) < 1) {
+        return `M${x0},${y0}L${x1},${y1}`;
+    }
+    const yMid = (y0 + y1) / 2;
+    return `M${x0},${y0}L${x0},${yMid}L${x1},${yMid}L${x1},${y1}`;
+}
+
 export class MetroRenderer {
     constructor(containerSelector) {
         this.container = document.querySelector(containerSelector);
         this.tooltip = d3.select('#tooltip');
+        this._selectedRelationKey = null;
     }
 
     generateMetroPath(stations) {
@@ -73,6 +105,19 @@ export class MetroRenderer {
             .attr('xmlns', 'http://www.w3.org/2000/svg');
 
         const zoomGroup = svg.append('g').attr('class', 'zoom-group');
+
+        svg.append('defs')
+            .append('marker')
+            .attr('id', 'metro-relation-arrow')
+            .attr('viewBox', '0 -4 8 8')
+            .attr('refX', 8)
+            .attr('refY', 0)
+            .attr('markerWidth', 5)
+            .attr('markerHeight', 5)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M0,-3L8,0L0,3')
+            .attr('fill', '#5a6a7a');
 
         // Helper to compute pale zone background color
         const getPaleColor = (hexColor) => {
@@ -197,6 +242,9 @@ export class MetroRenderer {
                 .attr('stroke-linecap', 'round');
         });
 
+        // 4.5 Relations Group (drawn below lines and stations, but above grids)
+        zoomGroup.append('g').attr('class', 'metro-relations');
+
         // 5. Lines
         const linesGroup = zoomGroup.append('g').attr('class', 'lines');
         const lineGenerator = d3.line()
@@ -305,6 +353,40 @@ export class MetroRenderer {
             }
         });
 
+        const relationEdges = [];
+        const syncSeen = new Set();
+        allStations.forEach(s => {
+            if (!s.relations) return;
+            s.relations.forEach(rel => {
+                if (!rel || !rel.target || !allStations.has(rel.target)) return;
+                const target = allStations.get(rel.target);
+                if (s.hidden || target.hidden) return;
+                const kind = rel.kind === 'synchronizedWith' ? 'synchronizedWith' : 'dependsOn';
+                if (kind === 'synchronizedWith') {
+                    const a = s.id < rel.target ? s.id : rel.target;
+                    const b = s.id < rel.target ? rel.target : s.id;
+                    const sk = `sync:${a}:${b}`;
+                    if (syncSeen.has(sk)) return;
+                    syncSeen.add(sk);
+                    relationEdges.push({
+                        source: s,
+                        target,
+                        kind,
+                        label: rel.label || '',
+                        key: sk
+                    });
+                } else {
+                    relationEdges.push({
+                        source: s,
+                        target,
+                        kind,
+                        label: rel.label || '',
+                        key: `dep:${s.id}->${rel.target}`
+                    });
+                }
+            });
+        });
+
         // Collision Detection for Labels
         const occupiedBoxes = [];
         
@@ -384,6 +466,94 @@ export class MetroRenderer {
                 .attr('stroke', '#fff')
                 .attr('stroke-width', 12)
                 .attr('stroke-linecap', 'round');
+        });
+
+        const relationsGroup = zoomGroup.select('.metro-relations');
+        const renderer = this;
+
+        relationEdges.forEach((edge) => {
+            const dPath = buildOrthogonalRelationPath(edge.source.x, edge.source.y, edge.target.x, edge.target.y);
+            if (!dPath) return;
+
+            const visPath = relationsGroup.append('path')
+                .attr('d', dPath)
+                .attr('class', 'metro-relation-path')
+                .attr('data-relation-key', edge.key)
+                .attr('fill', 'none')
+                .attr('stroke', edge.kind === 'synchronizedWith' ? '#8e7a9e' : '#6b7a8f')
+                .attr('stroke-width', edge.kind === 'synchronizedWith' ? 2.5 : 2.8)
+                .attr('stroke-dasharray', edge.kind === 'synchronizedWith' ? '2 5' : '4 4')
+                .attr('stroke-linecap', 'square')
+                .attr('stroke-linejoin', 'miter');
+
+            if (edge.kind === 'dependsOn') {
+                visPath.attr('marker-end', 'url(#metro-relation-arrow)');
+            }
+
+            if (renderer._selectedRelationKey === edge.key) {
+                visPath.classed('relation-path-selected', true);
+            }
+
+            const kindDe = edge.kind === 'synchronizedWith' ? 'Zeitgleich mit' : 'Abhängig von';
+            const safeNote = edge.label
+                ? String(edge.label)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                : '';
+            const noteHtml = safeNote ? `<br/><span class="tooltip-note">${safeNote}</span>` : '';
+
+            relationsGroup.append('path')
+                .attr('d', dPath)
+                .attr('class', 'metro-relation-hit')
+                .attr('data-relation-key', edge.key)
+                .attr('fill', 'none')
+                .attr('stroke', 'transparent')
+                .attr('stroke-width', 16)
+                .style('cursor', 'pointer')
+                .on('mouseover', (event) => {
+                    event.stopPropagation();
+                    if (renderer._selectedRelationKey) return;
+                    visPath.classed('metro-relation-hover', true);
+                    renderer.tooltip.classed('hidden', false)
+                        .html(`<strong>Beziehung</strong><br/>${kindDe}<br/>${edge.source.label} → ${edge.target.label}${noteHtml}`)
+                        .style('left', (event.pageX + 15) + 'px')
+                        .style('top', (event.pageY - 15) + 'px');
+                })
+                .on('mousemove', (event) => {
+                    if (!renderer._selectedRelationKey) {
+                        renderer.tooltip.style('left', (event.pageX + 15) + 'px').style('top', (event.pageY - 15) + 'px');
+                    }
+                })
+                .on('mouseout', () => {
+                    if (!renderer._selectedRelationKey) {
+                        visPath.classed('metro-relation-hover', false);
+                        renderer.tooltip.classed('hidden', true);
+                    }
+                })
+                .on('click', (event) => {
+                    event.stopPropagation();
+                    renderer._selectedRelationKey = edge.key;
+                    d3.selectAll('.metro-relation-path').classed('relation-path-selected', false);
+                    visPath.classed('relation-path-selected', true);
+                    zoomGroup.selectAll('.relation-selection-ring').remove();
+                    const ringG = zoomGroup.append('g').attr('class', 'relation-selection-ring');
+                    [edge.source, edge.target].forEach((st) => {
+                        ringG.append('circle')
+                            .attr('cx', st.x)
+                            .attr('cy', st.y)
+                            .attr('r', 11)
+                            .attr('fill', 'none')
+                            .attr('stroke', '#ff9800')
+                            .attr('stroke-width', 2)
+                            .style('pointer-events', 'none');
+                    });
+                    renderer.tooltip.classed('hidden', false)
+                        .html(`<strong>Beziehung</strong> (Auswahl)<br/>${kindDe}<br/>${edge.source.label} → ${edge.target.label}${noteHtml}`)
+                        .style('left', (event.pageX + 15) + 'px')
+                        .style('top', (event.pageY - 15) + 'px');
+                });
         });
 
         // Stations
@@ -608,6 +778,12 @@ export class MetroRenderer {
                         }
                     }
                 }
+                
+                if (station.flipLabel) {
+                    // Toggle offset if user explicitly requested flip
+                    finalOffset = (finalOffset === topOffset) ? bottomOffset : topOffset;
+                    // We don't adjust the bounding box here because the collision system is mostly additive and we are overriding its output manually
+                }
 
                 labelsGroup.append('text')
                     .attr('x', station.x)
@@ -715,15 +891,19 @@ export class MetroRenderer {
     }
 
     highlightLine(lineId) {
-        d3.selectAll('.metro-line, .station-circle, .station-label, .terminus-line')
+        d3.selectAll('.metro-line, .station-circle, .station-label, .station-stop, .terminus-line, .metro-relation-path, .metro-relation-hit')
             .attr('opacity', 0.2);
-        
+
         d3.selectAll(`.line-${lineId}`)
             .attr('opacity', 1);
     }
 
     clearHighlight() {
-        d3.selectAll('.metro-line, .station-circle, .station-label, .terminus-line')
+        this._selectedRelationKey = null;
+        d3.selectAll('.metro-relation-path').classed('relation-path-selected', false).classed('metro-relation-hover', false);
+        d3.selectAll('.relation-selection-ring').remove();
+        this.tooltip.classed('hidden', true);
+        d3.selectAll('.metro-line, .station-circle, .station-label, .station-stop, .terminus-line, .metro-relation-path, .metro-relation-hit')
             .attr('opacity', 1);
     }
 }
