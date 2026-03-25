@@ -18,31 +18,31 @@
       "id": "groupware",
       "label": "Groupware (Mail, Kalender, ...)",
       "color": "#2354e7",
-      "collapsed": true
+      "collapsed": false
     },
     {
       "id": "office",
       "label": "Office-Anwendungen (Text, Tabellen, ...)",
       "color": "#d9c14a",
-      "collapsed": true
+      "collapsed": false
     },
     {
       "id": "filecloud",
       "label": "Dateicloud",
       "color": "#27AE60",
-      "collapsed": true
+      "collapsed": false
     },
     {
       "id": "mobil",
       "label": "Mobiles Arbeiten",
       "color": "#6f3bb0",
-      "collapsed": true
+      "collapsed": false
     },
     {
       "id": "zone-85cjcn",
       "label": "Wins",
       "color": "#9c118a",
-      "collapsed": true
+      "collapsed": false
     }
   ],
   "lines": [
@@ -507,6 +507,12 @@
       "zone": "zone-85cjcn",
       "stations": [
         {
+          "id": "station-g2m1fy",
+          "label": "Online-Office",
+          "date": "2026-Q3",
+          "type": "milestone"
+        },
+        {
           "id": "station-dvvaj5",
           "label": "Abschaltung Blackberry",
           "date": "2026-08-01",
@@ -514,21 +520,21 @@
           "flipLabel": true
         },
         {
-          "id": "station-g2m1fy",
-          "label": "Online-Office",
-          "date": "2026-Q3",
-          "type": "milestone"
-        },
-        {
-          "id": "station-s39eiq",
-          "label": "Abschaltung Remote Desktop",
-          "date": "2027-Q2",
+          "id": "station-n6al3p",
+          "label": "10GB Postfächer",
+          "date": "2026-08-15",
           "type": "milestone"
         },
         {
           "id": "station-h30hcr",
           "label": "Stabiles VPN",
           "date": "2027-Q1",
+          "type": "milestone"
+        },
+        {
+          "id": "station-s39eiq",
+          "label": "Abschaltung Remote Desktop",
+          "date": "2027-Q2",
           "type": "milestone"
         }
       ]
