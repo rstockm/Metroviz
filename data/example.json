@@ -165,13 +165,13 @@
           "date": "2026-08-30",
           "type": "transfer",
           "transferTo": "stat-osm-3",
-          "description": "Siehe [Wechselrezept Big-Tech-Karten zu Open Street Map](https://di.day/de/wechselrezepte)."
+          "description": "Siehe [Wechselrezept Big-Tech-Karten zu OpenStreetMap](https://di.day/de/wechselrezepte)."
         }
       ]
     },
     {
       "id": "line-osm",
-      "label": "Open Street Map",
+      "label": "OpenStreetMap",
       "color": "#FFD300",
       "zone": "zone-5nkit1",
       "stations": [
