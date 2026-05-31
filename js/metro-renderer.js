@@ -120,6 +120,7 @@ export class MetroRenderer {
 
         this.container.innerHTML = '';
 
+        const containerWidth = this.container.clientWidth || config.width;
         const svg = d3.select(this.container)
             .append('svg')
             .attr('width', '100%')

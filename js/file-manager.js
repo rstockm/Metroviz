@@ -270,11 +270,55 @@ export const fileManagerActions = {
      * Exports the current roadmap view as an SVG file.
      */
     exportSVG() {
-        const svgUrl = this._getSvgDataUrl();
-        if (!svgUrl) return;
-        
+        const svgElement = window.app.renderer.svgElement;
+        if (!svgElement) return;
+
         try {
-            const source = decodeURIComponent(svgUrl.split(',')[1]);
+            const fullW = svgElement.viewBox.baseVal.width;
+            const fullH = svgElement.viewBox.baseVal.height;
+
+            // Horizontalen Weissraum zuschneiden; bei getBBox-Fehler auf volle Breite zurueckfallen
+            let cropX = 0;
+            let cropW = fullW;
+            try {
+                const bbox = svgElement.getBBox();
+                if (bbox && bbox.width > 0) {
+                    cropX = bbox.x - 20;
+                    let maxRight = -Infinity;
+                    svgElement.querySelectorAll('circle').forEach((c) => {
+                        const bb = c.getBBox();
+                        const ctm = c.getCTM();
+                        if (!ctm) return;
+                        const right = ctm.a * (bb.x + bb.width) + ctm.e;
+                        if (right > maxRight) maxRight = right;
+                    });
+                    cropW = (maxRight > -Infinity && maxRight > cropX)
+                        ? Math.ceil((maxRight - cropX) + 60)
+                        : Math.ceil(bbox.width + 60);
+                }
+            } catch (bboxErr) {
+                console.warn('getBBox fehlgeschlagen, exportiere volle viewBox:', bboxErr);
+            }
+
+            const serializer = new XMLSerializer();
+            let source = serializer.serializeToString(svgElement);
+
+            if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+                source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+            }
+            if (!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)) {
+                source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+            }
+
+            // viewBox anpassen, um leeren Rand links/rechts zu entfernen
+            source = source.replace(
+                /viewBox="[^"]*"/,
+                `viewBox="${cropX} 0 ${cropW} ${fullH}"`
+            );
+
+            source = sanitizeSvg(source);
+            source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
+
             const filename = sanitizeFilename(this.currentFileName) + '.svg';
             downloadBlob(source, 'image/svg+xml;charset=utf-8;', filename);
         } catch (e) {
@@ -289,7 +333,9 @@ export const fileManagerActions = {
         const svgUrl = this._getSvgDataUrl();
         if (!svgUrl) return;
         const svgElement = window.app.renderer.svgElement;
-        const width = svgElement.viewBox.baseVal.width;
+        const bbox = svgElement.getBBox ? svgElement.getBBox() : null;
+        const width = bbox ? Math.ceil(bbox.x + bbox.width + 40) : svgElement.viewBox.baseVal.width;
+        const exportOffsetX = bbox ? Math.max(0, bbox.x - 20) : 0;
         const height = svgElement.viewBox.baseVal.height;
 
         const img = new Image();
@@ -300,7 +346,7 @@ export const fileManagerActions = {
             canvas.height = height * scale;
             const ctx = canvas.getContext('2d');
             ctx.scale(scale, scale);
-            ctx.drawImage(img, 0, 0, width, height);
+            ctx.drawImage(img, -exportOffsetX, 0, svgElement.viewBox.baseVal.width, height);
             
             canvas.toBlob((blob) => {
                 const filename = sanitizeFilename(this.currentFileName) + '.png';
