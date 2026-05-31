@@ -92,7 +92,8 @@
     "descHide": "Hide description",
     "descEdit": "Edit description",
     "descAdd": "+ Add description",
-    "descPlaceholder": "Markdown description..."
+    "descPlaceholder": "Markdown description...",
+    "author": "Author"
   },
   "js": {
     "loadFileError": "Error loading: ",
@@ -138,7 +139,8 @@
     "events": "Events & Deadlines",
     "zone": "Zone",
     "noLines": "No work packages in this area",
-    "noStations": "No milestones"
+    "noStations": "No milestones",
+    "author": "Author"
   },
   "footer": {
     "copyright": "© 2026 Ralf Stockmann",
