@@ -363,7 +363,8 @@ export class MetroRenderer {
         quartersGroup.selectAll("text")
     .attr("fill", "#999")
     .attr("font-family", 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
-    .attr("font-size", "7px");
+    .attr("font-size", "7px")
+    .attr("dy", "-18px");
 
         const xAxisYears = d3.axisTop(xScale)
             .ticks(d3.timeYear.every(1))
@@ -381,7 +382,8 @@ export class MetroRenderer {
     .attr("fill", "#555")
     .attr("font-family", 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
     .attr("font-size", "15px")
-    .attr("font-weight", "bold");
+    .attr("font-weight", "bold")
+    .attr("dy", "-18px");
     }
 
     renderToday(group, layout, config, xScale) {
@@ -405,7 +407,7 @@ export class MetroRenderer {
 
             group.append('text')
                 .attr('x', x)
-                .attr('y', config.margins.top - 40)
+                .attr('y', config.margins.top - 3)
                 .attr('text-anchor', 'middle')
                 .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
                 .attr('font-size', '12px')
@@ -995,13 +997,13 @@ export class MetroRenderer {
 
             group.append('text')
                 .attr('x', event.x)
-                .attr('y', config.margins.top - 25)
+                .attr('y', config.margins.top - 45)
                 .attr('text-anchor', 'start')
                 .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
                 .attr('font-size', '11px')
                 .attr('font-weight', 'bold')
                 .attr('fill', '#d32f2f')
-                .attr('transform', `rotate(-35, ${event.x}, ${config.margins.top - 25})`)
+                .attr('transform', `rotate(-35, ${event.x}, ${config.margins.top - 45})`)
                 .text(event.date);
         });
 
