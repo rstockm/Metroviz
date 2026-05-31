@@ -341,7 +341,14 @@ export class MetroRenderer {
             .attr("stroke-width", 1);
             
         quartersGroup.selectAll("path").attr("stroke", "none");
-        quartersGroup.selectAll("text").attr("fill", "#999").attr("font-family", 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif').attr("font-size", "7px");
+        quartersGroup.selectAll("text")
+    .attr("fill", "#999")
+    .attr("font-family", 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
+    .attr("font-size", "9px")
+    .style("text-anchor", "end")
+    .attr("dx", "-0.4em")
+    .attr("dy", "-0.3em")
+    .attr("transform", "rotate(-35)");
 
         const xAxisYears = d3.axisTop(xScale)
             .ticks(d3.timeYear.every(1))
@@ -355,7 +362,15 @@ export class MetroRenderer {
             .attr("stroke-width", 1.5);
 
         yearsGroup.selectAll("path").attr("stroke", "none");
-        yearsGroup.selectAll("text").attr("fill", "#555").attr("font-family", 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif').attr("font-size", "15px").attr("font-weight", "bold");
+        yearsGroup.selectAll("text")
+    .attr("fill", "#555")
+    .attr("font-family", 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
+    .attr("font-size", "13px")
+    .attr("font-weight", "bold")
+    .style("text-anchor", "end")
+    .attr("dx", "-0.4em")
+    .attr("dy", "-0.3em")
+    .attr("transform", "rotate(-35)");
     }
 
     renderToday(group, layout, config, xScale) {
@@ -855,21 +870,23 @@ export class MetroRenderer {
             group.append('text')
                 .attr('x', event.x)
                 .attr('y', bottomY + 20)
-                .attr('text-anchor', 'middle')
+                .attr('text-anchor', 'end')
                 .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
                 .attr('font-size', '12px')
                 .attr('font-weight', 'bold')
                 .attr('fill', '#d32f2f')
+                .attr('transform', `rotate(-35, ${event.x}, ${bottomY + 20})`)
                 .text(event.label);
 
             group.append('text')
                 .attr('x', event.x)
                 .attr('y', config.margins.top - 25)
-                .attr('text-anchor', 'middle')
+                .attr('text-anchor', 'start')
                 .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
                 .attr('font-size', '11px')
                 .attr('font-weight', 'bold')
                 .attr('fill', '#d32f2f')
+                .attr('transform', `rotate(-35, ${event.x}, ${config.margins.top - 25})`)
                 .text(event.date);
         });
 

@@ -1,0 +1,221 @@
+{
+  "meta": {
+    "title": "Schrift-Test Roadmap",
+    "organization": "DI.DAY Test"
+  },
+  "timeline": {
+    "start": "2026-01-01",
+    "end": "2026-09-30"
+  },
+  "events": [
+    {
+      "id": "ev-1",
+      "label": "Kickoff DI.DAY 2026",
+      "date": "2026-01-25"
+    },
+    {
+      "id": "ev-2",
+      "label": "Sprint Review 1",
+      "date": "2026-02-01"
+    },
+    {
+      "id": "ev-3",
+      "label": "Sprint Review 2",
+      "date": "2026-02-08"
+    },
+    {
+      "id": "ev-4",
+      "label": "Sprint Review 3",
+      "date": "2026-02-15"
+    },
+    {
+      "id": "ev-5",
+      "label": "Sprint Review 4",
+      "date": "2026-02-22"
+    },
+    {
+      "id": "ev-6",
+      "label": "Monatsbilanz Feb",
+      "date": "2026-02-28"
+    },
+    {
+      "id": "ev-7",
+      "label": "Sprint Review 5",
+      "date": "2026-03-08"
+    },
+    {
+      "id": "ev-8",
+      "label": "Sprint Review 6",
+      "date": "2026-03-15"
+    },
+    {
+      "id": "ev-9",
+      "label": "Halbzeitbilanz",
+      "date": "2026-06-28"
+    },
+    {
+      "id": "ev-10",
+      "label": "Jahresabschluss 2026",
+      "date": "2026-12-27"
+    }
+  ],
+  "zones": [
+    {
+      "id": "zone-comm",
+      "label": "Messenger",
+      "color": "#00A0E2",
+      "collapsed": false
+    },
+    {
+      "id": "zone-office",
+      "label": "Büro & System",
+      "color": "#66C028",
+      "collapsed": false
+    }
+  ],
+  "lines": [
+    {
+      "id": "line-wa",
+      "label": "WhatsApp",
+      "color": "#0064B0",
+      "zone": "zone-comm",
+      "stations": [
+        {
+          "id": "s-wa-1",
+          "label": "Tägliche Nutzung",
+          "date": "2026-01-25",
+          "type": "existing"
+        },
+        {
+          "id": "s-wa-2",
+          "label": "Kontakte vorwarnen",
+          "date": "2026-01-26",
+          "type": "milestone"
+        },
+        {
+          "id": "s-wa-3",
+          "label": "Erste Reaktionen",
+          "date": "2026-01-27",
+          "type": "milestone"
+        },
+        {
+          "id": "s-wa-4",
+          "label": "Woche 2 Check",
+          "date": "2026-02-01",
+          "type": "milestone"
+        },
+        {
+          "id": "s-wa-5",
+          "label": "Finaler Wechsel",
+          "date": "2026-05-31",
+          "type": "transfer",
+          "transferTo": "s-sig-3",
+          "tint": true
+        }
+      ]
+    },
+    {
+      "id": "line-sig",
+      "label": "Signal",
+      "color": "#00A0E2",
+      "zone": "zone-comm",
+      "stations": [
+        {
+          "id": "s-sig-1",
+          "label": "Signal installieren",
+          "date": "2026-01-25",
+          "type": "start",
+          "tint": true
+        },
+        {
+          "id": "s-sig-2",
+          "label": "Erste Gruppe anlegen",
+          "date": "2026-01-26",
+          "type": "milestone",
+          "flipLabel": true,
+          "tint": true
+        },
+        {
+          "id": "s-sig-3",
+          "label": "Ausschließliche Nutzung",
+          "date": "2026-05-31",
+          "type": "transfer"
+        },
+        {
+          "id": "s-sig-4",
+          "label": "Regelbetrieb",
+          "date": "2026-09-01",
+          "type": "terminus"
+        }
+      ]
+    },
+    {
+      "id": "line-ms",
+      "label": "Microsoft Office",
+      "color": "#007229",
+      "zone": "zone-office",
+      "stations": [
+        {
+          "id": "s-ms-1",
+          "label": "MS Office 365 Abo",
+          "date": "2026-01-25",
+          "type": "existing"
+        },
+        {
+          "id": "s-ms-2",
+          "label": "Vorlagen sichten",
+          "date": "2026-01-26",
+          "type": "milestone"
+        },
+        {
+          "id": "s-ms-3",
+          "label": "Kompatibilitätstest",
+          "date": "2026-01-27",
+          "type": "milestone"
+        },
+        {
+          "id": "s-ms-4",
+          "label": "Abo kündigen",
+          "date": "2026-07-26",
+          "type": "transfer",
+          "transferTo": "s-libre-3"
+        }
+      ]
+    },
+    {
+      "id": "line-libre",
+      "label": "LibreOffice",
+      "color": "#6CBE45",
+      "zone": "zone-office",
+      "stations": [
+        {
+          "id": "s-libre-1",
+          "label": "Parallele Installation",
+          "date": "2026-01-25",
+          "type": "start",
+          "tint": true,
+          "flipLabel": true
+        },
+        {
+          "id": "s-libre-2",
+          "label": "Vorlagen übertragen",
+          "date": "2026-01-27",
+          "type": "milestone",
+          "flipLabel": true
+        },
+        {
+          "id": "s-libre-3",
+          "label": "Alleinige Nutzung",
+          "date": "2026-07-26",
+          "type": "transfer"
+        },
+        {
+          "id": "s-libre-4",
+          "label": "Workflows etabliert",
+          "date": "2026-09-15",
+          "type": "terminus"
+        }
+      ]
+    }
+  ]
+}
