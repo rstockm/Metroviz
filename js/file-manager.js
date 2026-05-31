@@ -269,36 +269,44 @@ export const fileManagerActions = {
     /**
      * Exports the current roadmap view as an SVG file.
      */
+    _contentBounds(svg) {
+        // Inhaltsgrenzen (alle Seiten) inkl. Transformationen der rotierten Labels.
+        // Ausgeklammert: ueberbreite Zonen-Baender (.zone-band) und Vollflaechen-Hintergrund (width=100%).
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        svg.querySelectorAll('text, circle, line, path, polyline, polygon, rect').forEach((el) => {
+            if (el.classList && el.classList.contains('zone-band')) return;
+            if (el.getAttribute('width') === '100%') return;
+            let bb;
+            try { bb = el.getBBox(); } catch (e) { return; }
+            if (!bb || (bb.width === 0 && bb.height === 0)) return;
+            const m = el.getCTM();
+            if (!m) return;
+            for (const x of [bb.x, bb.x + bb.width]) {
+                for (const y of [bb.y, bb.y + bb.height]) {
+                    const px = m.a * x + m.c * y + m.e;
+                    const py = m.b * x + m.d * y + m.f;
+                    if (px < minX) minX = px;
+                    if (px > maxX) maxX = px;
+                    if (py < minY) minY = py;
+                    if (py > maxY) maxY = py;
+                }
+            }
+        });
+        return isFinite(minX) ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY } : null;
+    },
+
     exportSVG() {
         const svgElement = window.app.renderer.svgElement;
         if (!svgElement) return;
 
         try {
-            const fullW = svgElement.viewBox.baseVal.width;
-            const fullH = svgElement.viewBox.baseVal.height;
-
-            // Horizontalen Weissraum zuschneiden; bei getBBox-Fehler auf volle Breite zurueckfallen
-            let cropX = 0;
-            let cropW = fullW;
-            try {
-                const bbox = svgElement.getBBox();
-                if (bbox && bbox.width > 0) {
-                    cropX = bbox.x - 20;
-                    let maxRight = -Infinity;
-                    svgElement.querySelectorAll('circle').forEach((c) => {
-                        const bb = c.getBBox();
-                        const ctm = c.getCTM();
-                        if (!ctm) return;
-                        const right = ctm.a * (bb.x + bb.width) + ctm.e;
-                        if (right > maxRight) maxRight = right;
-                    });
-                    cropW = (maxRight > -Infinity && maxRight > cropX)
-                        ? Math.ceil((maxRight - cropX) + 60)
-                        : Math.ceil(bbox.width + 60);
-                }
-            } catch (bboxErr) {
-                console.warn('getBBox fehlgeschlagen, exportiere volle viewBox:', bboxErr);
-            }
+            const vb = svgElement.viewBox.baseVal;
+            const bounds = this._contentBounds(svgElement);
+            const pad = 20;
+            const cropX = bounds ? Math.floor(bounds.x - pad) : vb.x;
+            const cropY = bounds ? Math.floor(bounds.y - pad) : vb.y;
+            const cropW = bounds ? Math.ceil(bounds.width + pad * 2) : vb.width;
+            const cropH = bounds ? Math.ceil(bounds.height + pad * 2) : vb.height;
 
             const serializer = new XMLSerializer();
             let source = serializer.serializeToString(svgElement);
@@ -310,10 +318,9 @@ export const fileManagerActions = {
                 source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
             }
 
-            // viewBox anpassen, um leeren Rand links/rechts zu entfernen
             source = source.replace(
                 /viewBox="[^"]*"/,
-                `viewBox="${cropX} 0 ${cropW} ${fullH}"`
+                `viewBox="${cropX} ${cropY} ${cropW} ${cropH}"`
             );
 
             source = sanitizeSvg(source);
@@ -330,31 +337,56 @@ export const fileManagerActions = {
      * Exports the current roadmap view as a high-resolution PNG file.
      */
     exportPNG() {
-        const svgUrl = this._getSvgDataUrl();
-        if (!svgUrl) return;
         const svgElement = window.app.renderer.svgElement;
-        const bbox = svgElement.getBBox ? svgElement.getBBox() : null;
-        const width = bbox ? Math.ceil(bbox.x + bbox.width + 40) : svgElement.viewBox.baseVal.width;
-        const exportOffsetX = bbox ? Math.max(0, bbox.x - 20) : 0;
-        const height = svgElement.viewBox.baseVal.height;
+        if (!svgElement) return;
+
+        const vb = svgElement.viewBox.baseVal;
+        const bounds = this._contentBounds(svgElement);
+        const pad = 20;
+        const cropX = bounds ? Math.floor(bounds.x - pad) : vb.x;
+        const cropY = bounds ? Math.floor(bounds.y - pad) : vb.y;
+        const cropW = bounds ? Math.ceil(bounds.width + pad * 2) : vb.width;
+        const cropH = bounds ? Math.ceil(bounds.height + pad * 2) : vb.height;
+
+        // Crop-viewBox direkt ins SVG schreiben (inkl. fester Pixelgroesse), damit das
+        // gerasterte Bild exakt den Crop-Bereich enthaelt - auch Labels ausserhalb der Original-viewBox.
+        let source;
+        try {
+            const serializer = new XMLSerializer();
+            source = serializer.serializeToString(svgElement);
+            if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+                source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+            }
+            if (!source.match(/^<svg[^>]+"http\:\/\/www\.w3\.org\/1999\/xlink"/)) {
+                source = source.replace(/^<svg/, '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+            }
+            source = source.replace(/viewBox="[^"]*"/, `viewBox="${cropX} ${cropY} ${cropW} ${cropH}"`);
+            source = source.replace(/(<svg\b[^>]*?)\swidth="[^"]*"/, '$1');
+            source = source.replace(/(<svg\b[^>]*?)\sheight="[^"]*"/, '$1');
+            source = source.replace(/<svg\b/, `<svg width="${cropW}" height="${cropH}"`);
+            source = sanitizeSvg(source);
+        } catch (e) {
+            console.error('Fehler beim SVG-Serialisieren fuer PNG:', e);
+            return;
+        }
+        const svgUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
 
         const img = new Image();
         img.onload = () => {
             const canvas = document.createElement('canvas');
             const scale = 4; // High resolution
-            canvas.width = width * scale;
-            canvas.height = height * scale;
+            canvas.width = cropW * scale;
+            canvas.height = cropH * scale;
             const ctx = canvas.getContext('2d');
-            ctx.scale(scale, scale);
-            ctx.drawImage(img, -exportOffsetX, 0, svgElement.viewBox.baseVal.width, height);
-            
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
             canvas.toBlob((blob) => {
                 const filename = sanitizeFilename(this.currentFileName) + '.png';
                 downloadBlob(blob, 'image/png', filename);
             }, 'image/png');
         };
         img.onerror = () => {
-            console.error('Fehler beim Rendern des SVG für den PNG Export.');
+            console.error('Fehler beim Rendern des SVG fuer den PNG Export.');
             this.dialogAlert(i18next.t('js.pngExportError'), i18next.t('js.errorTitle'));
         };
         img.src = svgUrl;
@@ -367,30 +399,42 @@ export const fileManagerActions = {
     async exportPDF() {
         const svgElement = window.app.renderer.svgElement;
         if (!svgElement) return;
-        
-        const width = svgElement.viewBox.baseVal.width;
-        const height = svgElement.viewBox.baseVal.height;
+
+        const vb = svgElement.viewBox.baseVal;
+        const bounds = this._contentBounds(svgElement);
+        const pad = 20;
+        const cropX = bounds ? Math.floor(bounds.x - pad) : vb.x;
+        const cropY = bounds ? Math.floor(bounds.y - pad) : vb.y;
+        const cropW = bounds ? Math.ceil(bounds.width + pad * 2) : vb.width;
+        const cropH = bounds ? Math.ceil(bounds.height + pad * 2) : vb.height;
 
         if (typeof window !== 'undefined' && window.jspdf && window.jspdf.jsPDF && window.svg2pdf) {
             const pdf = new window.jspdf.jsPDF({
-                orientation: width > height ? 'landscape' : 'portrait',
+                orientation: cropW > cropH ? 'landscape' : 'portrait',
                 unit: 'pt',
-                format: [width, height]
+                format: [cropW, cropH]
             });
-            
+
+            // PDF auf Klon mit Crop-viewBox rendern, damit die Live-Ansicht nicht flackert
+            const clone = svgElement.cloneNode(true);
+            clone.setAttribute('viewBox', `${cropX} ${cropY} ${cropW} ${cropH}`);
+            clone.setAttribute('width', cropW);
+            clone.setAttribute('height', cropH);
+            clone.setAttribute('preserveAspectRatio', 'xMinYMin meet');
+            clone.style.position = 'absolute';
+            clone.style.left = '-99999px';
+            clone.style.top = '0';
+            document.body.appendChild(clone);
+
             try {
-                await pdf.svg(svgElement, {
-                    x: 0,
-                    y: 0,
-                    width: width,
-                    height: height
-                });
-                
+                await pdf.svg(clone, { x: 0, y: 0, width: cropW, height: cropH });
                 const filename = sanitizeFilename(this.currentFileName) + '.pdf';
                 pdf.save(filename);
             } catch (err) {
                 console.error("Fehler beim SVG-to-PDF Export:", err);
                 this.dialogAlert(i18next.t('js.pdfExportError') + err.message, i18next.t('js.errorTitle'));
+            } finally {
+                document.body.removeChild(clone);
             }
         } else {
             console.error("jsPDF- oder svg2pdf-Bibliothek konnte nicht gefunden werden.");
