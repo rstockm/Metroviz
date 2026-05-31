@@ -92,7 +92,8 @@
     "descHide": "Beschreibung ausblenden",
     "descEdit": "Beschreibung bearbeiten",
     "descAdd": "+ Beschreibung hinzufügen",
-    "descPlaceholder": "Markdown Beschreibung..."
+    "descPlaceholder": "Markdown Beschreibung...",
+    "author": "Ersteller"
   },
   "js": {
     "loadFileError": "Fehler beim Laden: ",
@@ -138,7 +139,8 @@
     "events": "Events & Deadlines",
     "zone": "Themenbereich",
     "noLines": "Keine Arbeitspakete in diesem Bereich",
-    "noStations": "Keine Meilensteine"
+    "noStations": "Keine Meilensteine",
+    "author": "Ersteller"
   },
   "footer": {
     "copyright": "© 2026 Ralf Stockmann",

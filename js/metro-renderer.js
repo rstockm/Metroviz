@@ -182,6 +182,15 @@ export class MetroRenderer {
                     .attr('fill', '#666')
                     .text(layout.meta.organization);
             }
+            if (layout.meta.author) {
+                metaGroup.append('text')
+                    .attr('x', 20)
+                    .attr('y', 85)
+                    .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
+                    .attr('font-size', '12px')
+                    .attr('fill', '#888')
+                    .text('Ersteller: ' + layout.meta.author);
+            }
         }
 
         // SVG layers are ordered explicitly to control Z-index (Painter's Algorithm).
