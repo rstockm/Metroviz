@@ -191,6 +191,16 @@ export class MetroRenderer {
                     .attr('fill', '#888')
                     .text('Ersteller: ' + layout.meta.author);
             }
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const standText = `Stand: ${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+            metaGroup.append('text')
+                .attr('x', 20)
+                .attr('y', 105)
+                .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
+                .attr('font-size', '12px')
+                .attr('fill', '#888')
+                .text(standText);
         }
 
         // SVG layers are ordered explicitly to control Z-index (Painter's Algorithm).
