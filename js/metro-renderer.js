@@ -344,11 +344,7 @@ export class MetroRenderer {
         quartersGroup.selectAll("text")
     .attr("fill", "#999")
     .attr("font-family", 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
-    .attr("font-size", "9px")
-    .style("text-anchor", "end")
-    .attr("dx", "-0.4em")
-    .attr("dy", "-0.3em")
-    .attr("transform", "rotate(-35)");
+    .attr("font-size", "7px");
 
         const xAxisYears = d3.axisTop(xScale)
             .ticks(d3.timeYear.every(1))
@@ -365,12 +361,8 @@ export class MetroRenderer {
         yearsGroup.selectAll("text")
     .attr("fill", "#555")
     .attr("font-family", 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
-    .attr("font-size", "13px")
-    .attr("font-weight", "bold")
-    .style("text-anchor", "end")
-    .attr("dx", "-0.4em")
-    .attr("dy", "-0.3em")
-    .attr("transform", "rotate(-35)");
+    .attr("font-size", "15px")
+    .attr("font-weight", "bold");
     }
 
     renderToday(group, layout, config, xScale) {
