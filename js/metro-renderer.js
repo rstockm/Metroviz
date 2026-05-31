@@ -633,6 +633,21 @@ export class MetroRenderer {
      * @param {Function} checkCollision - Tests if a box overlaps existing elements
      */
     renderStations(transferBgGroup, transferFgGroup, normalStationsGroup, labelsGroup, visibleLines, zoneColors, allStations, addBox, checkCollision) {
+        // Separate collision tracker just for labels (not lines/stations)
+        const labelBoxes = [];
+        const addLabelBox = (xMin, xMax, yMin, yMax) => {
+            labelBoxes.push({xMin, xMax, yMin, yMax});
+        };
+        const checkLabelCollision = (box) => {
+            const pad = 2;
+            for (let b of labelBoxes) {
+                if (box.xMin - pad < b.xMax && box.xMax + pad > b.xMin &&
+                    box.yMin - pad < b.yMax && box.yMax + pad > b.yMin) {
+                    return true;
+                }
+            }
+            return false;
+        };
         visibleLines.forEach(line => {
             line.stations.forEach((station, index) => {
                 const isTransfer = station.type === 'transfer' || station.transferTo || station.transferFrom;
@@ -803,32 +818,24 @@ export class MetroRenderer {
                 // Resolve label placement by testing preferred top/bottom positions against occupied boxes.
                 if (forceBottom) {
                     finalOffset = bottomOffset;
-                    addBox(bottomBox.xMin, bottomBox.xMax, bottomBox.yMin, bottomBox.yMax);
                 } else if (forceTop) {
                     finalOffset = topOffset;
-                    addBox(topBox.xMin, topBox.xMax, topBox.yMin, topBox.yMax);
                 } else {
                     if (preferredOffset === bottomOffset) {
                         if (!checkCollision(bottomBox)) {
                             finalOffset = bottomOffset;
-                            addBox(bottomBox.xMin, bottomBox.xMax, bottomBox.yMin, bottomBox.yMax);
                         } else if (!checkCollision(topBox)) {
                             finalOffset = topOffset;
-                            addBox(topBox.xMin, topBox.xMax, topBox.yMin, topBox.yMax);
                         } else {
-                            finalOffset = bottomOffset; 
-                            addBox(bottomBox.xMin, bottomBox.xMax, bottomBox.yMin, bottomBox.yMax);
+                            finalOffset = bottomOffset;
                         }
                     } else {
                         if (!checkCollision(topBox)) {
                             finalOffset = topOffset;
-                            addBox(topBox.xMin, topBox.xMax, topBox.yMin, topBox.yMax);
                         } else if (!checkCollision(bottomBox)) {
                             finalOffset = bottomOffset;
-                            addBox(bottomBox.xMin, bottomBox.xMax, bottomBox.yMin, bottomBox.yMax);
                         } else {
-                            finalOffset = topOffset; 
-                            addBox(topBox.xMin, topBox.xMax, topBox.yMin, topBox.yMax);
+                            finalOffset = topOffset;
                         }
                     }
                 }
@@ -837,28 +844,125 @@ export class MetroRenderer {
                     finalOffset = (finalOffset === topOffset) ? bottomOffset : topOffset;
                 }
 
-                labelsGroup.append('text')
-                    .attr('x', station.x)
-                    .attr('y', station.y + finalOffset)
+                // Stagger labels vertically when stations are close together
+                const prevX = index > 0 ? line.stations[index - 1].x : null;
+                const nextX = index < line.stations.length - 1 ? line.stations[index + 1].x : null;
+                const minDist = Math.min(
+                    prevX !== null ? Math.abs(station.x - prevX) : Infinity,
+                    nextX !== null ? Math.abs(station.x - nextX) : Infinity
+                );
+                const denseThreshold = 80;
+                let adjustedOffset = finalOffset;
+                if (minDist < denseThreshold && !station.flipLabel) {
+                    if (index % 2 === 1) {
+                        adjustedOffset = (finalOffset === topOffset) ? bottomOffset : topOffset;
+                    }
+                    if (minDist < 15) {
+                        const extraPush = adjustedOffset > 0 ? 14 : -14;
+                        adjustedOffset += extraPush;
+                    }
+                }
+                // Label-only collision: find a free vertical slot
+                const isDense = minDist < 20;
+                const fontSize = isDense ? '10px' : '12px';
+                const charW = isDense ? 5.5 : 6.5;
+                const labelW = station.label.length * charW;
+                const labelH = isDense ? 12 : 14;
+                const makeBox = (off) => ({
+                    xMin: station.x - labelW/2, xMax: station.x + labelW/2,
+                    yMin: station.y + off - labelH, yMax: station.y + off
+                });
+                let finalBox = makeBox(adjustedOffset);
+                if (checkLabelCollision(finalBox)) {
+                    // Try multiple vertical slots in small steps
+                    const candidates = [
+                        (adjustedOffset === topOffset) ? bottomOffset : topOffset,
+                        topOffset - 14,
+                        bottomOffset + 14,
+                        topOffset - 28,
+                        bottomOffset + 28
+                    ];
+                    let found = false;
+                    for (const off of candidates) {
+                        const tryBox = makeBox(off);
+                        if (!checkLabelCollision(tryBox)) {
+                            adjustedOffset = off;
+                            finalBox = tryBox;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                addLabelBox(finalBox.xMin, finalBox.xMax, finalBox.yMin, finalBox.yMax);
+
+                const labelX = station.x;
+                const bgEl = labelsGroup.append('text')
+                    .attr('x', labelX)
+                    .attr('y', station.y + adjustedOffset)
                     .attr('class', `station-label-bg line-${line.id}`)
                     .attr('text-anchor', 'middle')
                     .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
-                    .attr('font-size', '12px')
+                    .attr('font-size', fontSize)
                     .attr('fill', 'none')
                     .attr('stroke', zoneColors.get(line.zone))
                     .attr('stroke-width', 3)
                     .attr('stroke-linejoin', 'round')
+                    .style('pointer-events', 'none')
                     .text(station.label);
 
-                labelsGroup.append('text')
-                    .attr('x', station.x)
-                    .attr('y', station.y + finalOffset)
+                const fgEl = labelsGroup.append('text')
+                    .attr('x', labelX)
+                    .attr('y', station.y + adjustedOffset)
                     .attr('class', `station-label line-${line.id}`)
                     .attr('text-anchor', 'middle')
                     .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
-                    .attr('font-size', '12px')
+                    .attr('font-size', fontSize)
                     .attr('fill', '#333')
+                    .style('pointer-events', 'none')
                     .text(station.label);
+
+                // Invisible hit area for label hover
+                const hitArea = labelsGroup.append('rect')
+                    .attr('x', labelX - labelW/2)
+                    .attr('y', station.y + adjustedOffset - labelH)
+                    .attr('width', labelW)
+                    .attr('height', labelH + 4)
+                    .attr('fill', 'transparent')
+                    .style('cursor', 'pointer');
+
+                // Hover: highlight label + show tooltip
+                const labelHoverIn = (event) => {
+                    bgEl.attr('font-size', '13px').attr('stroke-width', 4);
+                    fgEl.attr('font-size', '13px').attr('font-weight', 'bold').attr('fill', '#000');
+                    let durationText = '';
+                    if (index < line.stations.length - 1) {
+                        const nextStation = line.stations[index + 1];
+                        if (station.dateObj && nextStation.dateObj) {
+                            const diffTime = nextStation.dateObj - station.dateObj;
+                            const diffWeeks = Math.round(diffTime / (1000 * 60 * 60 * 24 * 7));
+                            durationText = '<br/>' + i18next.t('js.durationTo', { target: escapeHtml(nextStation.label), weeks: diffWeeks });
+                        }
+                    }
+                    let descHtml = '';
+                    if (station.description && station.description.trim() !== '') {
+                        let parsedMd = typeof marked !== 'undefined' ? marked.parse(station.description) : station.description;
+                        descHtml = '<div class="tooltip-desc">' + sanitizeHtml(parsedMd) + '</div>';
+                    }
+                    this.tooltip.classed('hidden', false)
+                        .html('<strong>' + escapeHtml(station.label) + '</strong><br/>' +
+                              i18next.t('js.tooltipLine') + ': ' + escapeHtml(line.label) + '<br/>' +
+                              i18next.t('js.tooltipDate') + ': ' + escapeHtml(station.date) + durationText + descHtml)
+                        .style('left', (event.pageX + 15) + 'px')
+                        .style('top', (event.pageY - 15) + 'px');
+                };
+                const labelHoverOut = () => {
+                    bgEl.attr('font-size', fontSize).attr('stroke-width', 3);
+                    fgEl.attr('font-size', fontSize).attr('font-weight', 'normal').attr('fill', '#333');
+                    this.tooltip.classed('hidden', true);
+                };
+                hitArea.on('mouseover', labelHoverIn).on('mousemove', (event) => {
+                    this.tooltip.style('left', (event.pageX + 15) + 'px').style('top', (event.pageY - 15) + 'px');
+                }).on('mouseout', labelHoverOut);
             });
         });
     }
