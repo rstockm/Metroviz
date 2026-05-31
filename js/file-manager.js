@@ -273,13 +273,18 @@ export const fileManagerActions = {
         // Inhaltsgrenzen (alle Seiten) inkl. Transformationen der rotierten Labels.
         // Ausgeklammert: ueberbreite Zonen-Baender (.zone-band) und Vollflaechen-Hintergrund (width=100%).
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        // Transformation Element-lokal -> viewBox-User-Koordinaten (rechnet viewBox-Skalierung/Offset heraus)
+        const rootScreen = svg.getScreenCTM();
+        const toUser = rootScreen ? rootScreen.inverse() : null;
         svg.querySelectorAll('text, circle, line, path, polyline, polygon, rect').forEach((el) => {
             if (el.classList && el.classList.contains('zone-band')) return;
             if (el.getAttribute('width') === '100%') return;
             let bb;
             try { bb = el.getBBox(); } catch (e) { return; }
             if (!bb || (bb.width === 0 && bb.height === 0)) return;
-            const m = el.getCTM();
+            let m;
+            const screen = el.getScreenCTM();
+            if (toUser && screen) { m = toUser.multiply(screen); } else { m = el.getCTM(); }
             if (!m) return;
             for (const x of [bb.x, bb.x + bb.width]) {
                 for (const y of [bb.y, bb.y + bb.height]) {

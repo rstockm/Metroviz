@@ -125,7 +125,7 @@ export class MetroRenderer {
             .append('svg')
             .attr('width', '100%')
             .attr('height', '100%')
-            .attr('viewBox', `0 0 ${config.width} ${config.height}`)
+            .attr('viewBox', `-10 -25 ${config.width + 20} ${config.height + 25}`)
             .attr('preserveAspectRatio', 'xMinYMin meet')
             .attr('xmlns', 'http://www.w3.org/2000/svg')
             .style('background-color', '#ffffff');
@@ -167,7 +167,7 @@ export class MetroRenderer {
             if (layout.meta.title) {
                 metaGroup.append('text')
                     .attr('x', 0)
-                    .attr('y', 40)
+                    .attr('y', 15)
                     .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
                     .attr('font-size', '24px')
                     .attr('font-weight', 'bold')
@@ -177,7 +177,7 @@ export class MetroRenderer {
             if (layout.meta.organization) {
                 metaGroup.append('text')
                     .attr('x', 0)
-                    .attr('y', 65)
+                    .attr('y', 35)
                     .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
                     .attr('font-size', '14px')
                     .attr('fill', '#666')
@@ -186,7 +186,7 @@ export class MetroRenderer {
             if (layout.meta.author) {
                 metaGroup.append('text')
                     .attr('x', 0)
-                    .attr('y', 85)
+                    .attr('y', 50)
                     .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
                     .attr('font-size', '12px')
                     .attr('fill', '#888')
@@ -197,8 +197,8 @@ export class MetroRenderer {
             const standText = `Stand: ${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
             metaGroup.append('text')
                 .attr('x', 0)
-                .attr('y', 105)
-                .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
+                .attr('y', 70)
+                    .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
                 .attr('font-size', '12px')
                 .attr('fill', '#888')
                 .text(standText);
