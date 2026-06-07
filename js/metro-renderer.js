@@ -165,7 +165,7 @@ export class MetroRenderer {
             const metaGroup = zoomGroup.append('g').attr('class', 'meta-info');
             if (layout.meta.title) {
                 metaGroup.append('text')
-                    .attr('x', 20)
+                    .attr('x', 0)
                     .attr('y', 40)
                     .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
                     .attr('font-size', '24px')
@@ -175,13 +175,32 @@ export class MetroRenderer {
             }
             if (layout.meta.organization) {
                 metaGroup.append('text')
-                    .attr('x', 20)
+                    .attr('x', 0)
                     .attr('y', 65)
                     .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
                     .attr('font-size', '14px')
                     .attr('fill', '#666')
                     .text(layout.meta.organization);
             }
+            if (layout.meta.author) {
+                metaGroup.append('text')
+                    .attr('x', 0)
+                    .attr('y', 85)
+                    .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
+                    .attr('font-size', '12px')
+                    .attr('fill', '#888')
+                    .text('Ersteller: ' + layout.meta.author);
+            }
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const standText = `Stand: ${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+            metaGroup.append('text')
+                .attr('x', 0)
+                .attr('y', 105)
+                .attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif')
+                .attr('font-size', '12px')
+                .attr('fill', '#888')
+                .text(standText);
         }
 
         // SVG layers are ordered explicitly to control Z-index (Painter's Algorithm).

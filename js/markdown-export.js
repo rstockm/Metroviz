@@ -26,6 +26,9 @@ export const markdownExportActions = {
         if (this.data.meta?.organization) {
             md += `**${this.$store.i18n.t('md.organization')}:** ${this.data.meta.organization}  \n`;
         }
+        if (this.data.meta?.author) {
+            md += `**${this.$store.i18n.t('md.author')}:** ${this.data.meta.author}  \n`;
+        }
         if (this.data.timeline?.start || this.data.timeline?.end) {
             md += `**${this.$store.i18n.t('md.timeline')}:** ${this.data.timeline.start || '?'} - ${this.data.timeline.end || '?'}  \n`;
         }
