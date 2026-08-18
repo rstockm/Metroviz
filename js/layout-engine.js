@@ -201,6 +201,7 @@ export class LayoutEngine {
         return {
             config: dynamicConfig,
             meta: data.meta,
+            timeline: { axis: data.timeline.axis === 'weeks' ? 'weeks' : 'quarters' },
             xScale: xScale,
             zones: zones,
             lines: lines,

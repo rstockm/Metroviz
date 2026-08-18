@@ -91,7 +91,7 @@ class App {
 
                 data: {
                     meta: { title: '', organization: '' },
-                    timeline: { start: '', end: '' },
+                    timeline: { start: '', end: '', axis: 'quarters' },
                     events: [],
                     zones: [],
                     lines: []

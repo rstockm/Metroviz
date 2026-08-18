@@ -47,6 +47,9 @@
     "organization": "Organization",
     "start": "Start (e.g. 2020-Q1)",
     "end": "End (e.g. 2030-Q4)",
+    "axis": "Time axis",
+    "axisQuarters": "Quarters",
+    "axisWeeks": "Calendar weeks",
     "eventsTitle": "Events & Deadlines",
     "addEvent": "+ Event",
     "label": "Label",
@@ -129,7 +132,8 @@
     "durationTo": "Duration until {{target}}: approx. {{weeks}} weeks",
     "tooltipLine": "Line",
     "tooltipDate": "Date",
-    "today": "Today"
+    "today": "Today",
+    "calendarWeek": "W{{week}}"
   },
   "md": {
     "roadmap": "Roadmap",

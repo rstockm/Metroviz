@@ -39,6 +39,30 @@ function buildOrthogonalRelationPath(sx, sy, tx, ty) {
 
 import { escapeHtml, sanitizeHtml } from './utils.js';
 
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const WEEK_LABEL_GAP_PX = 24;
+
+function weekGridDensity(xScale, config) {
+    const [start, end] = xScale.domain();
+    const weeks = Math.max(1, (end - start) / WEEK_MS);
+    const availablePx = config.width - config.margins.left - config.margins.right;
+    const pxPerWeek = availablePx / weeks;
+    if (pxPerWeek >= 36) return { lineEvery: 1, labelEvery: 1 };
+    if (pxPerWeek >= 18) return { lineEvery: 1, labelEvery: 2 };
+    if (pxPerWeek >= 8) return { lineEvery: 1, labelEvery: 4 };
+    if (pxPerWeek >= 4) return { lineEvery: 2, labelEvery: 8 };
+    return { lineEvery: 4, labelEvery: 16 };
+}
+
+function isNearYearTick(date, xScale) {
+    const x = xScale(date);
+    const year = date.getFullYear();
+    const jan1This = new Date(year, 0, 1);
+    const jan1Next = new Date(year + 1, 0, 1);
+    return Math.abs(x - xScale(jan1This)) < WEEK_LABEL_GAP_PX
+        || Math.abs(x - xScale(jan1Next)) < WEEK_LABEL_GAP_PX;
+}
+
 export function getTintedColor(lineColor, zoneBg) {
     return d3.interpolate(lineColor, zoneBg || '#ffffff')(0.7);
 }
@@ -189,7 +213,7 @@ export class MetroRenderer {
         // and finally foreground elements (stations, labels) to prevent occlusion.
         const layers = {
             zones: zoomGroup.append('g').attr('class', 'zones'),
-            gridQuarters: zoomGroup.append('g').attr('class', 'axis axis-grid-quarters'),
+            gridMinor: zoomGroup.append('g').attr('class', 'axis axis-grid-minor'),
             gridYears: zoomGroup.append('g').attr('class', 'axis axis-grid-years'),
             today: zoomGroup.append('g').attr('class', 'today-line'),
             events: zoomGroup.append('g').attr('class', 'events-lines'),
@@ -292,7 +316,7 @@ export class MetroRenderer {
         });
 
         this.renderZones(layers.zones, zones, config);
-        this.renderGrid(layers.gridQuarters, layers.gridYears, xScale, config);
+        this.renderGrid(layers.gridMinor, layers.gridYears, xScale, config, layout.timeline?.axis || 'quarters');
         this.renderToday(layers.today, layout, config, xScale);
         this.renderEvents(layers.events, layout.events, config);
         this.renderLines(layers.lineIndicators, layers.lines, layers.terminus, visibleLines, zoneColors, routedPaths);
@@ -324,38 +348,72 @@ export class MetroRenderer {
         });
     }
 
-    renderGrid(quartersGroup, yearsGroup, xScale, config) {
-        const xAxisQuarters = d3.axisTop(xScale)
-            .ticks(d3.timeMonth.every(3))
-            .tickFormat(d => {
-                if (d.getMonth() === 0) return "";
-                const quarter = Math.floor(d.getMonth() / 3) + 1;
-                return `Q${quarter}`;
-            });
+    renderGrid(minorGroup, yearsGroup, xScale, config, axisMode) {
+        const tickHeight = -config.height + config.margins.top + config.margins.bottom;
+        let minorAxis;
 
-        quartersGroup
+        if (axisMode === 'weeks') {
+            const { lineEvery, labelEvery } = weekGridDensity(xScale, config);
+            const startMonday = d3.timeMonday.ceil(xScale.domain()[0]);
+            // Ticks must be counted from startMonday, not from the epoch as d3's
+            // every() does, otherwise the label filter below can miss every tick.
+            const weekIndexOf = d => Math.round((d - startMonday) / WEEK_MS);
+            const weekTicks = lineEvery > 1
+                ? d3.timeMonday.filter(d => weekIndexOf(d) % lineEvery === 0)
+                : d3.timeMonday;
+            const firstWeekByYear = new Map();
+            weekTicks.range(xScale.domain()[0], xScale.domain()[1]).forEach(d => {
+                if (isNearYearTick(d, xScale)) return;
+                if (weekIndexOf(d) % labelEvery !== 0) return;
+                const year = d.getFullYear();
+                if (firstWeekByYear.has(year)) return;
+                firstWeekByYear.set(year, +d3.timeFormat('%V')(d));
+            });
+            minorAxis = d3.axisTop(xScale)
+                .ticks(weekTicks)
+                .tickFormat(d => {
+                    if (isNearYearTick(d, xScale)) return '';
+                    if (weekIndexOf(d) % labelEvery !== 0) return '';
+                    const week = +d3.timeFormat('%V')(d);
+                    if (firstWeekByYear.get(d.getFullYear()) !== week) return String(week);
+                    if (typeof i18next !== 'undefined') {
+                        return i18next.t('js.calendarWeek', { week });
+                    }
+                    return `KW ${week}`;
+                });
+        } else {
+            minorAxis = d3.axisTop(xScale)
+                .ticks(d3.timeMonth.every(3))
+                .tickFormat(d => {
+                    if (d.getMonth() === 0) return '';
+                    const quarter = Math.floor(d.getMonth() / 3) + 1;
+                    return `Q${quarter}`;
+                });
+        }
+
+        minorGroup
             .attr('transform', `translate(0, ${config.margins.top})`)
-            .call(xAxisQuarters.tickSize(-config.height + config.margins.top + config.margins.bottom))
-            .selectAll("line")
-            .attr("stroke", "#e0e0e0")
-            .attr("stroke-width", 1);
-            
-        quartersGroup.selectAll("path").attr("stroke", "none");
-        quartersGroup.selectAll("text").attr("fill", "#999").attr("font-family", 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif').attr("font-size", "7px");
+            .call(minorAxis.tickSize(tickHeight))
+            .selectAll('line')
+            .attr('stroke', '#e0e0e0')
+            .attr('stroke-width', 1);
+
+        minorGroup.selectAll('path').attr('stroke', 'none');
+        minorGroup.selectAll('text').attr('fill', '#999').attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif').attr('font-size', '7px');
 
         const xAxisYears = d3.axisTop(xScale)
             .ticks(d3.timeYear.every(1))
-            .tickFormat(d3.timeFormat("%Y"));
+            .tickFormat(d3.timeFormat('%Y'));
 
         yearsGroup
             .attr('transform', `translate(0, ${config.margins.top})`)
-            .call(xAxisYears.tickSize(-config.height + config.margins.top + config.margins.bottom))
-            .selectAll("line")
-            .attr("stroke", "#cccccc")
-            .attr("stroke-width", 1.5);
+            .call(xAxisYears.tickSize(tickHeight))
+            .selectAll('line')
+            .attr('stroke', '#cccccc')
+            .attr('stroke-width', 1.5);
 
-        yearsGroup.selectAll("path").attr("stroke", "none");
-        yearsGroup.selectAll("text").attr("fill", "#555").attr("font-family", 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif').attr("font-size", "15px").attr("font-weight", "bold");
+        yearsGroup.selectAll('path').attr('stroke', 'none');
+        yearsGroup.selectAll('text').attr('fill', '#555').attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif').attr('font-size', '15px').attr('font-weight', 'bold');
     }
 
     renderToday(group, layout, config, xScale) {

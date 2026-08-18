@@ -95,7 +95,7 @@ export const fileManagerActions = {
         this.editorVisible = true;
         this.data = {
             meta: { title: i18next.t('js.defaultNewTitle'), organization: '' },
-            timeline: { start: `${year}-Q1`, end: `${year + 1}-Q3` },
+            timeline: { start: `${year}-Q1`, end: `${year + 1}-Q3`, axis: 'quarters' },
             events: [],
             zones: [],
             lines: []

@@ -192,7 +192,7 @@
                             <label x-text="$store.i18n.t('editor.organization')">Organisation</label>
                             <input type="text" x-model="data.meta.organization">
                         </div>
-                        <div class="form-row">
+                        <div class="form-row form-row-timeline">
                             <div class="form-group">
                                 <label x-text="$store.i18n.t('editor.start')">Start (z.B. 2020-Q1)</label>
                                 <input type="text" x-model="data.timeline.start">
@@ -200,6 +200,15 @@
                             <div class="form-group">
                                 <label x-text="$store.i18n.t('editor.end')">Ende (z.B. 2030-Q4)</label>
                                 <input type="text" x-model="data.timeline.end">
+                            </div>
+                            <div class="form-group form-group-axis">
+                                <label x-text="$store.i18n.t('editor.axis')">Zeitachse</label>
+                                <select
+                                    :value="data.timeline.axis || 'quarters'"
+                                    @change="data.timeline.axis = $event.target.value">
+                                    <option value="quarters" x-text="$store.i18n.t('editor.axisQuarters')">Quartale</option>
+                                    <option value="weeks" x-text="$store.i18n.t('editor.axisWeeks')">Kalenderwochen</option>
+                                </select>
                             </div>
                         </div>
                     </div>
