@@ -11,7 +11,8 @@
 <body x-data="metrovizApp" 
       @focus-station.window="focusStation($event.detail.id)"
       @toggle-zone.window="const z = data.zones.find(zone => zone.id === $event.detail.id); if (z) { z.collapsed = !z.collapsed; }"
-      @keydown.escape.window="onEscapeModal()">
+      @keydown.escape.window="onEscapeModal()"
+      @keydown.window="onSaveShortcut($event)">
     <header id="header">
         <div class="header-left flex-center">
             <svg width="44" height="28" viewBox="0 0 100 60" fill="none" class="logo-icon">
