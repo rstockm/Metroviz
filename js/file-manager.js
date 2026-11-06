@@ -61,6 +61,22 @@ export const fileManagerActions = {
     },
 
 /**
+     * Handles the save shortcut: Cmd+S on macOS, Ctrl+S on Windows/Linux.
+     * Suppresses the browser's "Save page" dialog and triggers saveFile().
+     * @param {KeyboardEvent} e - The keydown event.
+     */
+    onSaveShortcut(e) {
+        if (e.key?.toLowerCase() !== 's' || e.shiftKey || e.altKey) return;
+        const platform = navigator.userAgentData?.platform || navigator.platform || '';
+        const isMac = /mac|iphone|ipad|ipod/i.test(platform);
+        if (!(isMac ? e.metaKey : e.ctrlKey)) return;
+        e.preventDefault();
+        // Ignore while a modal is open (e.g. the save confirmation) and on key auto-repeat
+        if (this.dialogOpen || this.importModalOpen || e.repeat) return;
+        this.saveFile();
+    },
+
+/**
      * Prompts the user for a new name and saves the current data as a new file.
      */
     async saveAsNew() {
