@@ -206,6 +206,7 @@
                                 <select
                                     :value="data.timeline.axis || 'quarters'"
                                     @change="data.timeline.axis = $event.target.value">
+                                    <option value="years" x-text="$store.i18n.t('editor.axisYears')">Jahre</option>
                                     <option value="quarters" x-text="$store.i18n.t('editor.axisQuarters')">Quartale</option>
                                     <option value="months" x-text="$store.i18n.t('editor.axisMonths')">Monate</option>
                                     <option value="weeks" x-text="$store.i18n.t('editor.axisWeeks')">Kalenderwochen</option>

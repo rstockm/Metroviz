@@ -38,7 +38,7 @@ export class DataModel {
             timeline: {
                 start: parseDate(data.timeline.start, 'throw'),
                 end: parseDate(data.timeline.end, 'throw'),
-                axis: ['months', 'weeks'].includes(data.timeline.axis) ? data.timeline.axis : 'quarters'
+                axis: ['years', 'months', 'weeks'].includes(data.timeline.axis) ? data.timeline.axis : 'quarters'
             },
             events: (data.events || []).map(e => ({
                 ...e,

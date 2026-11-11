@@ -54,6 +54,20 @@ function weekGridDensity(xScale, config) {
     return { lineEvery: 4, labelEvery: 16 };
 }
 
+const YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;
+
+// A bold 15px "2026" label is about 40px wide; thin out labels on long timelines.
+function yearLabelEvery(xScale, config) {
+    const [start, end] = xScale.domain();
+    const years = Math.max(1, (end - start) / YEAR_MS);
+    const availablePx = config.width - config.margins.left - config.margins.right;
+    const pxPerYear = availablePx / years;
+    if (pxPerYear >= 60) return 1;
+    if (pxPerYear >= 30) return 2;
+    if (pxPerYear >= 12) return 5;
+    return 10;
+}
+
 const MONTH_MS = 365.25 / 12 * 24 * 60 * 60 * 1000;
 
 function monthLabelEvery(xScale, config) {
@@ -415,6 +429,9 @@ export class MetroRenderer {
                     if (d.getMonth() % labelEvery !== 0) return '';
                     return formatMonth(d);
                 });
+        } else if (axisMode === 'years') {
+            // Year lines and labels come from the years axis below; no minor grid.
+            minorAxis = null;
         } else {
             minorAxis = d3.axisTop(xScale)
                 .ticks(d3.timeMonth.every(3))
@@ -425,19 +442,23 @@ export class MetroRenderer {
                 });
         }
 
-        minorGroup
-            .attr('transform', `translate(0, ${config.margins.top})`)
-            .call(minorAxis.tickSize(tickHeight))
-            .selectAll('line')
-            .attr('stroke', '#e0e0e0')
-            .attr('stroke-width', 1);
+        if (minorAxis) {
+            minorGroup
+                .attr('transform', `translate(0, ${config.margins.top})`)
+                .call(minorAxis.tickSize(tickHeight))
+                .selectAll('line')
+                .attr('stroke', '#e0e0e0')
+                .attr('stroke-width', 1);
 
-        minorGroup.selectAll('path').attr('stroke', 'none');
-        minorGroup.selectAll('text').attr('fill', '#999').attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif').attr('font-size', '7px');
+            minorGroup.selectAll('path').attr('stroke', 'none');
+            minorGroup.selectAll('text').attr('fill', '#999').attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif').attr('font-size', '7px');
+        }
 
+        const formatYear = d3.timeFormat('%Y');
+        const yearLabelStep = axisMode === 'years' ? yearLabelEvery(xScale, config) : 1;
         const xAxisYears = d3.axisTop(xScale)
             .ticks(d3.timeYear.every(1))
-            .tickFormat(d3.timeFormat('%Y'));
+            .tickFormat(d => d.getFullYear() % yearLabelStep === 0 ? formatYear(d) : '');
 
         yearsGroup
             .attr('transform', `translate(0, ${config.margins.top})`)
