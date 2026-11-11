@@ -201,7 +201,7 @@ export class LayoutEngine {
         return {
             config: dynamicConfig,
             meta: data.meta,
-            timeline: { axis: data.timeline.axis === 'weeks' ? 'weeks' : 'quarters' },
+            timeline: { axis: ['years', 'months', 'weeks'].includes(data.timeline.axis) ? data.timeline.axis : 'quarters' },
             xScale: xScale,
             zones: zones,
             lines: lines,

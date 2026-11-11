@@ -40,13 +40,20 @@ function buildOrthogonalRelationPath(sx, sy, tx, ty) {
 import { escapeHtml, sanitizeHtml } from './utils.js';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-const WEEK_LABEL_GAP_PX = 24;
+const MONTH_MS = 365.25 / 12 * 24 * 60 * 60 * 1000;
+const QUARTER_MS = 3 * MONTH_MS;
+const YEAR_MS = 12 * MONTH_MS;
+const YEAR_LABEL_GAP_PX = 24;
+
+function pxPerUnit(xScale, config, unitMs) {
+    const [start, end] = xScale.domain();
+    const units = Math.max(1, (end - start) / unitMs);
+    const availablePx = config.width - config.margins.left - config.margins.right;
+    return availablePx / units;
+}
 
 function weekGridDensity(xScale, config) {
-    const [start, end] = xScale.domain();
-    const weeks = Math.max(1, (end - start) / WEEK_MS);
-    const availablePx = config.width - config.margins.left - config.margins.right;
-    const pxPerWeek = availablePx / weeks;
+    const pxPerWeek = pxPerUnit(xScale, config, WEEK_MS);
     if (pxPerWeek >= 36) return { lineEvery: 1, labelEvery: 1 };
     if (pxPerWeek >= 18) return { lineEvery: 1, labelEvery: 2 };
     if (pxPerWeek >= 8) return { lineEvery: 1, labelEvery: 4 };
@@ -54,13 +61,51 @@ function weekGridDensity(xScale, config) {
     return { lineEvery: 4, labelEvery: 16 };
 }
 
+// A bold 15px "2026" label is about 27px wide; keep labeled years at least 40px apart.
+function yearLabelEvery(xScale, config) {
+    const pxPerYear = pxPerUnit(xScale, config, YEAR_MS);
+    if (pxPerYear >= 40) return 1;
+    if (pxPerYear >= 20) return 2;
+    if (pxPerYear >= 8) return 5;
+    return 10;
+}
+
+// Minor labels must keep clear of the year labels, so the levels below are
+// chosen by density for the whole axis rather than per tick: that keeps every
+// year showing the same set of labels. 0 means no minor labels.
+function quarterLabelEvery(xScale, config) {
+    const pxPerQuarter = pxPerUnit(xScale, config, QUARTER_MS);
+    if (pxPerQuarter >= 22) return 1; // Q2, Q3, Q4
+    if (pxPerQuarter >= 11) return 2; // Q3 only
+    return 0;
+}
+
+function monthLabelEvery(xScale, config) {
+    const pxPerMonth = pxPerUnit(xScale, config, MONTH_MS);
+    if (pxPerMonth >= 24) return 1;
+    if (pxPerMonth >= 10) return 3;
+    if (pxPerMonth >= 3.5) return 6;
+    return 0;
+}
+
+function monthLabelFormatter() {
+    const locale = typeof i18next !== 'undefined' ? i18next.resolvedLanguage : undefined;
+    try {
+        const format = new Intl.DateTimeFormat(locale, { month: 'short' });
+        // Drop abbreviation dots ("Jan." -> "Jan") to keep the 7px labels compact.
+        return d => format.format(d).replace(/\.$/, '');
+    } catch {
+        return d3.timeFormat('%b');
+    }
+}
+
 function isNearYearTick(date, xScale) {
     const x = xScale(date);
     const year = date.getFullYear();
     const jan1This = new Date(year, 0, 1);
     const jan1Next = new Date(year + 1, 0, 1);
-    return Math.abs(x - xScale(jan1This)) < WEEK_LABEL_GAP_PX
-        || Math.abs(x - xScale(jan1Next)) < WEEK_LABEL_GAP_PX;
+    return Math.abs(x - xScale(jan1This)) < YEAR_LABEL_GAP_PX
+        || Math.abs(x - xScale(jan1Next)) < YEAR_LABEL_GAP_PX;
 }
 
 export function getTintedColor(lineColor, zoneBg) {
@@ -381,29 +426,49 @@ export class MetroRenderer {
                     }
                     return `KW ${week}`;
                 });
+        } else if (axisMode === 'months') {
+            const labelEvery = monthLabelEvery(xScale, config);
+            const formatMonth = monthLabelFormatter();
+            minorAxis = d3.axisTop(xScale)
+                .ticks(d3.timeMonth.every(1))
+                .tickFormat(d => {
+                    // January is covered by the year label.
+                    if (d.getMonth() === 0) return '';
+                    if (labelEvery === 0 || d.getMonth() % labelEvery !== 0) return '';
+                    return formatMonth(d);
+                });
+        } else if (axisMode === 'years') {
+            // Year lines and labels come from the years axis below; no minor grid.
+            minorAxis = null;
         } else {
+            const labelEvery = quarterLabelEvery(xScale, config);
             minorAxis = d3.axisTop(xScale)
                 .ticks(d3.timeMonth.every(3))
                 .tickFormat(d => {
                     if (d.getMonth() === 0) return '';
+                    if (labelEvery === 0 || (d.getMonth() / 3) % labelEvery !== 0) return '';
                     const quarter = Math.floor(d.getMonth() / 3) + 1;
                     return `Q${quarter}`;
                 });
         }
 
-        minorGroup
-            .attr('transform', `translate(0, ${config.margins.top})`)
-            .call(minorAxis.tickSize(tickHeight))
-            .selectAll('line')
-            .attr('stroke', '#e0e0e0')
-            .attr('stroke-width', 1);
+        if (minorAxis) {
+            minorGroup
+                .attr('transform', `translate(0, ${config.margins.top})`)
+                .call(minorAxis.tickSize(tickHeight))
+                .selectAll('line')
+                .attr('stroke', '#e0e0e0')
+                .attr('stroke-width', 1);
 
-        minorGroup.selectAll('path').attr('stroke', 'none');
-        minorGroup.selectAll('text').attr('fill', '#999').attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif').attr('font-size', '7px');
+            minorGroup.selectAll('path').attr('stroke', 'none');
+            minorGroup.selectAll('text').attr('fill', '#999').attr('font-family', 'Helvetica, "Helvetica Neue", Arial, "Liberation Sans", sans-serif').attr('font-size', '7px');
+        }
 
+        const formatYear = d3.timeFormat('%Y');
+        const yearLabelStep = yearLabelEvery(xScale, config);
         const xAxisYears = d3.axisTop(xScale)
             .ticks(d3.timeYear.every(1))
-            .tickFormat(d3.timeFormat('%Y'));
+            .tickFormat(d => d.getFullYear() % yearLabelStep === 0 ? formatYear(d) : '');
 
         yearsGroup
             .attr('transform', `translate(0, ${config.margins.top})`)
